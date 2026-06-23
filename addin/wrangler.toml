@@ -1,0 +1,6 @@
+# Cloudflare-Pages-Projektkonfiguration für das Gordon Add-in.
+# Ermöglicht `npx wrangler pages deploy` ohne weitere Flags und wird auch beim
+# Git-verbundenen Build von Cloudflare gelesen.
+name = "gordon"
+pages_build_output_dir = "dist"
+compatibility_date = "2024-06-01"

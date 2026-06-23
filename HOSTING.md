@@ -11,11 +11,11 @@ Gordon besteht aus zwei Teilen mit unterschiedlichen Anforderungen:
 
 ### Add-in-Bundle → **Cloudflare Pages** (kostenlos) ✅
 - Kostenlos, automatisches HTTPS, eigene Domain, schnelles CDN, unbegrenzter Traffic.
-- Deploy: `addin` mit produktiver `PROXY_BASE_URL` bauen (`npm run build`) und
-  den `dist`-Ordner zu Cloudflare Pages pushen (oder GitHub-Repo verbinden).
-- Gleichwertige kostenlose Alternativen: **GitHub Pages**, **Netlify**, **Vercel**.
+- **Schritt-für-Schritt-Anleitung: siehe [DEPLOY-CLOUDFLARE.md](DEPLOY-CLOUDFLARE.md).**
 - Diese eine HTTPS-URL ist danach die feste Quelle im `manifest.xml` und der
   erlaubte CORS-Origin (`ALLOWED_ORIGIN`) des Proxy.
+- **Nicht GitHub Pages:** Dessen Nutzungsbedingungen untersagen kommerzielle/SaaS-
+  Nutzung und es erlaubt keine Cache-Header – beides hier ausschlaggebend.
 
 ### Proxy → je nach Modell
 
