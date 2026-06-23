@@ -2,6 +2,15 @@
 
 Excel Add-in für Handelsregister- und Unternehmensdaten (handelsregister.ai).
 
+## Dokumentation
+
+- **Betrieb & Onboarding**
+  - [Kunden-Installation](docs/KUNDEN-INSTALLATION.md) – Add-in im M365-Tenant bereitstellen + Ersteinrichtung durch Mitarbeiter
+  - [Lizenzen & Nutzer verwalten](docs/LIZENZEN-VERWALTEN.md) – Admin-Playbook (Tokens, Limits)
+- **Deployment**
+  - [Add-in auf Cloudflare Pages](DEPLOY-CLOUDFLARE.md) · [Proxy-Hosting](HOSTING.md)
+- **Recht:** [legal/](legal/) (EULA, Datenschutz, AVV, AGB – Muster)
+
 Die App besteht nur noch aus dem API-Teil: Im Ribbon gibt es je handelsregister.ai Feature einen Button. Jeder Button oeffnet das Taskpane mit dem passenden Feature vorausgewaehlt. Dort wird ein Unternehmen eingegeben oder aus der markierten Zelle uebernommen, der Request gesendet und die rohe JSON-Antwort angezeigt.
 
 ## Features im Ribbon
