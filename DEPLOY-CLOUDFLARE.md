@@ -41,17 +41,28 @@ ADDIN_BASE_URL=https://app.gordon.de npm run deploy
 
 ## Dauerbetrieb (Git-verbunden, Auto-Build)
 
-Sobald das Repo auf GitHub/GitLab liegt:
+> ⚠️ **Wichtig: ein „Pages"-Projekt anlegen, KEIN „Workers"-Projekt.** Cloudflare
+> steuert beim Repo-Import gern in den Workers-Flow (`npx wrangler deploy`) – der
+> baut das Add-in **nicht** und scheitert mit „Could not detect a directory
+> containing static files". Dieses Projekt ist eine reine statische Seite → Pages.
 
-1. Cloudflare-Dashboard → **Pages → gordon → Settings → Build & deployments →
-   Connect to Git**.
-2. Einstellungen:
-   - **Root directory:** `addin`
+1. Cloudflare-Dashboard → **Workers & Pages → Create → Pages → Connect to Git**
+   (ausdrücklich den **Pages**-Tab wählen).
+2. Build-Einstellungen:
+   - **Framework preset:** None
+   - **Root directory:** `addin`  ← entscheidend, sonst findet Cloudflare keine
+     `package.json`, installiert nichts und baut nicht
    - **Build command:** `npm run build:prod`
    - **Build output directory:** `dist`
    - **Environment variable:** `ADDIN_BASE_URL = https://app.gordon.de`
+   - **Production branch:** `main`
 3. Ab jetzt baut & deployt Cloudflare bei jedem Push automatisch (inkl. Preview-URLs
    pro Branch und Rollbacks).
+
+### Wenn schon ein fehlgeschlagenes Projekt existiert
+Falls bereits ein Projekt `npx wrangler deploy` ausgeführt hat (Workers-Flow):
+**dieses Projekt löschen** und nach obiger Anleitung als **Pages**-Projekt neu
+anlegen. Es gibt bewusst **keine `wrangler.toml`** im Repo – nur Dashboard-Settings.
 
 ## Add-in an die Kunden verteilen
 
