@@ -29,6 +29,12 @@ describe("users – Verwaltung & Auth", () => {
     expect(users.authenticateUser("ungueltig")).toBeNull();
   });
 
+  it("liefert den Klartext-Token in listUsers (für 'Token kopieren')", () => {
+    const { user, token } = users.createUser("Copy-Test", 5);
+    const found = users.listUsers().find((u) => u.id === user.id);
+    expect(found?.token).toBe(token);
+  });
+
   it("erzwingt das Limit und bucht Verbrauch über den Kontext", () => {
     const { user, token } = users.createUser("Limit-Test", 10);
     // Verbrauch im Nutzer-Kontext buchen

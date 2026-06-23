@@ -29,6 +29,8 @@ export interface User {
   id: string;
   name: string;
   tokenHash: string;
+  /** Klartext-Token, damit der Admin ihn später wieder kopieren kann. */
+  token: string;
   creditLimit: number;
   creditsUsed: number;
   unlimited: boolean;
@@ -98,6 +100,7 @@ export function createUser(name: string, creditLimit: number): { user: PublicUse
     id: randomBytes(8).toString("hex"),
     name: name.trim() || "Unbenannt",
     tokenHash: hashToken(token),
+    token,
     creditLimit: Number.isFinite(creditLimit) && creditLimit >= 0 ? Math.floor(creditLimit) : 0,
     creditsUsed: 0,
     unlimited: false,
@@ -138,6 +141,7 @@ export function rotateToken(id: string): { user: PublicUser; token: string } | n
   if (!user) return null;
   const token = randomBytes(24).toString("hex");
   user.tokenHash = hashToken(token);
+  user.token = token;
   persist();
   return { user: publicView(user), token };
 }
