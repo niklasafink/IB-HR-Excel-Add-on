@@ -1,8 +1,8 @@
 {
-  "name": "openregister-proxy",
+  "name": "handelsregister-ai-proxy",
   "version": "1.0.0",
   "private": true,
-  "description": "Schlanker Backend-Proxy, der den OpenRegister-API-Key serverseitig hält und Autocomplete/Financials/Company an das Add-in weiterreicht.",
+  "description": "Schlanker Backend-Proxy, der den handelsregister.ai-API-Key serverseitig hält und Unternehmensdaten an das Add-in weiterreicht.",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/server.ts",

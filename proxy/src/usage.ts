@@ -57,8 +57,36 @@ function persist(): void {
 export function creditCost(path: string): { credits: number; label: string } {
   const [pathname, qs] = path.split("?");
   const params = new URLSearchParams(qs ?? "");
-  const realtime = params.get("realtime") === "true";
   const seg = pathname.split("/").filter(Boolean); // z. B. ["v1","company","DE-…","owners"]
+
+  if (seg[1] === "search-organizations") return { credits: 1, label: "search-organizations" };
+  if (seg[1] === "fetch-organization") {
+    const features = params.getAll("feature");
+    const featureCredits: Record<string, number> = {
+      financial_kpi: 1,
+      balance_sheet_accounts: 3,
+      profit_and_loss_account: 3,
+      related_persons: 2,
+      publications: 1,
+      news: 10,
+      insolvency_publications: 1,
+      annual_financial_statements: 5,
+      annual_financial_statements__html: 5,
+      shareholders: 5,
+      ubos: 10,
+      shareholdings: 5,
+      website_content: 0,
+    };
+    const credits = Math.max(5, features.reduce((sum, feature) => sum + (featureCredits[feature] ?? 0), 0));
+    return { credits, label: "fetch-organization" };
+  }
+  if (seg[1] === "fetch-person") {
+    const credits = params.getAll("feature").includes("shareholdings") ? 20 : 15;
+    return { credits, label: "fetch-person" };
+  }
+  if (seg[1] === "fetch-document") return { credits: 5, label: "fetch-document" };
+
+  const realtime = params.get("realtime") === "true";
 
   // Suche / Lookup
   if (seg[1] === "autocomplete") return { credits: 1, label: "autocomplete" };
@@ -118,4 +146,3 @@ export async function recordUsage(pathStr: string, _method: "GET" | "POST"): Pro
 export function getUsageSummary(): UsageSnapshot {
   return getUsage();
 }
-

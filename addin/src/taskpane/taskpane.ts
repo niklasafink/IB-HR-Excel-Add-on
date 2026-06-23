@@ -1,589 +1,270 @@
-/* global Office, document, window, performance */
+/* global Office, document, window */
 
-// Admin-/Entwickler-Sidebar: Verbindungsstatus, Firmensuche-Debug und
-// persistente Konfiguration (wird von den Ribbon-Buttons gelesen).
+import { API_FEATURES, featureByKey, type ApiFeature } from "../lib/features";
+import {
+  generateReports,
+  readSelectedCompanies,
+  proxyBaseUrl,
+  setProxyBaseUrl,
+  checkHealth,
+  YEAR_FEATURES,
+  type ReportOptions,
+  type ReportSummary,
+  type TargetMode,
+} from "../lib/report";
 
-import { health, proxyBaseUrl, autocomplete, callEndpoint, getUsage, resetUsage } from "../lib/api";
-import { debugResolve } from "../lib/loader";
-import { ENDPOINTS, type EndpointDef, type EndpointParam } from "../lib/endpoints";
-import {
-  FILTER_OP_LABELS,
-  eurToCents,
-  type FilterFieldDef,
-  type FilterOp,
-  type FilterCondition,
-} from "../lib/filters";
-import {
-  getConfig,
-  saveConfig,
-  KENNZAHLEN_FIELDS,
-  STAMMDATEN_FIELDS,
-  type AdminConfig,
-  type ValueScale,
-} from "../lib/config";
+interface CompanyEntry {
+  name: string;
+  checked: boolean;
+}
+
+let companies: CompanyEntry[] = [];
 
 Office.onReady((info) => {
   if (info.host !== Office.HostType.Excel) return;
-  document.getElementById("app")!.classList.remove("hidden");
+  byId("app").classList.remove("hidden");
 
-  loadConfigIntoForm();
-  renderInfo();
-  renderUsage();
-  initApiExplorer();
-  
-  // Wenn URL-Parameter "endpoint" vorhanden, automatisch laden
-  const urlParams = new URLSearchParams(window.location.search);
-  const endpointId = urlParams.get("endpoint");
-  if (endpointId && ENDPOINTS.find((e) => e.id === endpointId)) {
-    byId<HTMLSelectElement>("apiEndpoint").value = endpointId;
-    renderEndpointForm();
-    // Kleine Verzögerung vor automatischem Request wenn company_id vorhanden
-    setTimeout(() => {
-      const cidInput = document.querySelector<HTMLInputElement>('#apiParams input[data-param="company_id"]');
-      if (cidInput && cidInput.value.trim()) {
-        void sendApiRequest();
-      }
-    }, 100);
-  }
-
-  byId("testConn").addEventListener("click", testConnection);
-  byId("debugSearch").addEventListener("click", runDebugSearch);
-  byId("saveCfg").addEventListener("click", onSave);
-  // Usage controls
-  const refreshBtn = document.getElementById("refreshUsage");
-  if (refreshBtn) refreshBtn.addEventListener("click", () => renderUsage());
-  const resetBtn = document.getElementById("resetUsage");
-  if (resetBtn) resetBtn.addEventListener("click", async () => {
-    setStatus("apiStatus", "lösche…");
-    try {
-      await resetUsage();
-      await renderUsage();
-      setStatus("apiStatus", "Usage zurückgesetzt", "success");
-    } catch (err) {
-      setStatus("apiStatus", (err as Error).message, "error");
-    }
-  });
+  renderFeatureSelect();
+  applyFeatureFromUrl();
+  renderYearQuick();
+  byId<HTMLInputElement>("proxyUrl").value = proxyBaseUrl();
+  bindEvents();
+  void refreshCompanies();
+  void testConnection(false);
 });
 
 function byId<T extends HTMLElement = HTMLElement>(id: string): T {
   return document.getElementById(id) as T;
 }
 
-function setStatus(id: string, msg: string, kind: "" | "error" | "success" = ""): void {
-  const el = byId(id);
-  el.textContent = msg;
-  el.className = `status ${kind}`;
+function bindEvents(): void {
+  byId<HTMLSelectElement>("featureSelect").addEventListener("change", () => {
+    const feature = currentFeature();
+    renderFeatureInfo(feature);
+    applyYearVisibility(feature);
+  });
+  byId("refreshCompanies").addEventListener("click", () => void refreshCompanies());
+  byId("companyAddBtn").addEventListener("click", addManualCompany);
+  byId<HTMLInputElement>("companyAdd").addEventListener("keydown", (event) => {
+    if ((event as KeyboardEvent).key === "Enter") addManualCompany();
+  });
+  byId("generate").addEventListener("click", () => void runGenerate());
+  // Manuelle Eingabe hebt die Schnellauswahl-Markierung auf.
+  for (const id of ["yearFrom", "yearTo"]) {
+    byId<HTMLInputElement>(id).addEventListener("input", () => setActiveChip(null));
+  }
+  byId("testConn").addEventListener("click", () => void testConnection(true));
+  byId<HTMLInputElement>("proxyUrl").addEventListener("change", () => {
+    const normalized = setProxyBaseUrl(byId<HTMLInputElement>("proxyUrl").value);
+    byId<HTMLInputElement>("proxyUrl").value = normalized;
+    void testConnection(false);
+  });
 }
 
-function renderFieldChecks(
-  containerId: string,
-  defs: Array<{ key: string; label: string }>,
-  selected: string[]
-): void {
-  byId(containerId).innerHTML = defs
-    .map((f) => {
-      const checked = selected.includes(f.key) ? "checked" : "";
-      return `<label><input type="checkbox" data-field="${f.key}" ${checked}/> ${f.label}</label>`;
+function renderFeatureSelect(): void {
+  const select = byId<HTMLSelectElement>("featureSelect");
+  const groups = [...new Set(API_FEATURES.map((feature) => feature.group))];
+  select.innerHTML = groups
+    .map((group) => {
+      const options = API_FEATURES.filter((feature) => feature.group === group)
+        .map((feature) => `<option value="${feature.key}">${escapeHtml(feature.label)}</option>`)
+        .join("");
+      return `<optgroup label="${escapeHtml(group)}">${options}</optgroup>`;
     })
     .join("");
 }
 
-function readFieldChecks(containerId: string): string[] {
-  return Array.from(
-    document.querySelectorAll<HTMLInputElement>(`#${containerId} input[data-field]:checked`)
-  ).map((el) => el.dataset.field!);
+function applyFeatureFromUrl(): void {
+  const feature = featureByKey(new URLSearchParams(window.location.search).get("feature"));
+  byId<HTMLSelectElement>("featureSelect").value = feature.key;
+  renderFeatureInfo(feature);
+  applyYearVisibility(feature);
 }
 
-function loadConfigIntoForm(): void {
-  const cfg = getConfig();
-  byId<HTMLInputElement>("proxyUrl").value = cfg.proxyUrl;
-  byId<HTMLInputElement>("autoYearCount").value = String(cfg.autoYearCount);
-  byId<HTMLSelectElement>("scale").value = cfg.scale;
-  byId<HTMLInputElement>("removeEmpty").checked = cfg.removeEmpty;
-  byId<HTMLInputElement>("centsToEuro").checked = cfg.centsToEuro;
-  renderFieldChecks("kzFields", KENNZAHLEN_FIELDS, cfg.kennzahlenFields);
-  renderFieldChecks("stFields", STAMMDATEN_FIELDS, cfg.stammdatenFields);
+function currentFeature(): ApiFeature {
+  return featureByKey(byId<HTMLSelectElement>("featureSelect").value);
 }
 
-function renderInfo(): void {
-  byId("info").innerHTML = [
-    `<div><b>Version:</b> 1.0.0</div>`,
-    `<div><b>Aktive Proxy-URL:</b> ${escapeHtml(proxyBaseUrl())}</div>`,
-    `<div><b>Add-in-Origin:</b> ${escapeHtml(window.location.origin)}</div>`,
-    `<div><b>Plattform:</b> ${escapeHtml(String(Office.context.platform ?? ""))}</div>`,
+function renderFeatureInfo(feature: ApiFeature): void {
+  byId("featureInfo").innerHTML = [
+    `<b>${escapeHtml(feature.label)}</b>`,
+    feature.beta ? `<span> · Beta</span>` : "",
+    `<span> · ${escapeHtml(feature.credits)} Credits</span>`,
+    `<div>${escapeHtml(feature.description)}</div>`,
   ].join("");
 }
 
-async function testConnection(): Promise<void> {
-  setStatus("connStatus", "teste…");
-  // Eventuell geänderte URL zuerst speichern, damit der Test sie nutzt.
-  await persist();
-  const t0 = performance.now();
-  try {
-    const res = await health();
-    const ms = Math.round(performance.now() - t0);
-    if (res.ok) setStatus("connStatus", `OK (${ms} ms)`, "success");
-    else setStatus("connStatus", "Antwort ohne ok=true", "error");
-  } catch (err) {
-    setStatus("connStatus", (err as Error).message, "error");
-  }
-  renderInfo();
+function applyYearVisibility(feature: ApiFeature): void {
+  byId("yearOption").style.display = YEAR_FEATURES.has(feature.key) ? "" : "none";
 }
 
-async function runDebugSearch(): Promise<void> {
-  const name = byId<HTMLInputElement>("debugName").value.trim();
-  const ul = byId("debugResults");
-  ul.innerHTML = "";
-  if (!name) return;
-  await persist();
-  ul.innerHTML = "<li>suche…</li>";
-  try {
-    // Roh-Treffer (Reihenfolge der API) + bewertete Auswahl.
-    const [raw, ranked] = await Promise.all([autocomplete(name), debugResolve(name)]);
-    if (!ranked.length) {
-      ul.innerHTML = `<li>Keine Treffer (API lieferte ${raw.results?.length ?? 0}).</li>`;
-      return;
-    }
-    ul.innerHTML = ranked
-      .slice(0, 8)
-      .map((c) => {
-        const cls = c.picked ? "picked" : "";
-        const act = c.result.active ? "aktiv" : "inaktiv";
-        return `<li class="${cls} clickable" data-cid="${escapeHtml(c.result.company_id)}" title="company_id in den API Explorer übernehmen">${c.picked ? "➤ " : ""}${escapeHtml(c.result.name)}<br>
-          <span class="id">${escapeHtml(c.result.company_id)} · ${act} · Score ${c.score}</span></li>`;
-      })
-      .join("");
-    ul.querySelectorAll<HTMLLIElement>("li[data-cid]").forEach((li) => {
-      li.addEventListener("click", () => useCompanyId(li.dataset.cid!));
+// ---- Jahr-Schnellauswahl ------------------------------------------------
+
+/** Buttons für die letzten 3 Jahre + Spanne, statt Jahreszahlen zu tippen. */
+function renderYearQuick(): void {
+  const current = new Date().getFullYear();
+  const years = [current - 1, current - 2, current - 3];
+  const chips = years.map(
+    (year) => `<button type="button" class="year-chip" data-from="${year}" data-to="${year}">${year}</button>`
+  );
+  chips.push(
+    `<button type="button" class="year-chip" data-from="${current - 3}" data-to="${current - 1}">Letzte 3 Jahre</button>`
+  );
+
+  const container = byId("yearQuick");
+  container.innerHTML = chips.join("");
+  container.querySelectorAll<HTMLButtonElement>(".year-chip").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      setYearRange(Number(btn.dataset.from), Number(btn.dataset.to));
+      setActiveChip(btn);
     });
-  } catch (err) {
-    ul.innerHTML = `<li class="err">${escapeHtml((err as Error).message)}</li>`;
+  });
+}
+
+function setYearRange(from: number, to: number): void {
+  byId<HTMLInputElement>("yearFrom").value = String(from);
+  byId<HTMLInputElement>("yearTo").value = String(to);
+}
+
+function setActiveChip(active: HTMLElement | null): void {
+  byId("yearQuick")
+    .querySelectorAll<HTMLButtonElement>(".year-chip")
+    .forEach((chip) => chip.classList.toggle("active", chip === active));
+}
+
+// ---- Firmen-Liste -------------------------------------------------------
+
+async function refreshCompanies(): Promise<void> {
+  const fromExcel = await readSelectedCompanies();
+  const existing = new Map(companies.map((entry) => [entry.name.toLowerCase(), entry]));
+  for (const name of fromExcel) {
+    if (!existing.has(name.toLowerCase())) {
+      const entry = { name, checked: true };
+      existing.set(name.toLowerCase(), entry);
+      companies.push(entry);
+    }
+  }
+  renderCompanyList();
+  if (!fromExcel.length && !companies.length) {
+    setStatus("Keine Firma markiert – bitte Zellen mit Firmennamen markieren oder manuell hinzufügen.");
   }
 }
 
-/** Übernimmt eine company_id in das company_id-Feld des aktiven Explorer-Endpunkts. */
-function useCompanyId(companyId: string): void {
-  const input = document.querySelector<HTMLInputElement>('#apiParams input[data-param="company_id"]');
-  if (input) {
-    input.value = companyId;
-    setStatus("apiStatus", `company_id übernommen: ${companyId}`, "success");
-  } else {
-    setStatus("apiStatus", `Wähle oben einen Endpunkt mit company_id (${companyId}).`);
+function addManualCompany(): void {
+  const input = byId<HTMLInputElement>("companyAdd");
+  const name = input.value.trim();
+  if (!name) return;
+  if (!companies.some((entry) => entry.name.toLowerCase() === name.toLowerCase())) {
+    companies.push({ name, checked: true });
   }
+  input.value = "";
+  renderCompanyList();
 }
 
-function formValues(): AdminConfig {
-  const count = Number(byId<HTMLInputElement>("autoYearCount").value) || 5;
-  return {
-    proxyUrl: byId<HTMLInputElement>("proxyUrl").value.trim(),
-    autoYearCount: Math.min(10, Math.max(1, count)),
-    scale: byId<HTMLSelectElement>("scale").value as ValueScale,
-    removeEmpty: byId<HTMLInputElement>("removeEmpty").checked,
-    centsToEuro: byId<HTMLInputElement>("centsToEuro").checked,
-    kennzahlenFields: readFieldChecks("kzFields"),
-    stammdatenFields: readFieldChecks("stFields"),
-  };
-}
-
-async function persist(): Promise<void> {
-  await saveConfig(formValues());
-}
-
-async function onSave(): Promise<void> {
-  setStatus("saveStatus", "speichere…");
-  try {
-    await persist();
-    setStatus("saveStatus", "gespeichert ✓", "success");
-    renderInfo();
-  } catch (err) {
-    setStatus("saveStatus", (err as Error).message, "error");
+function renderCompanyList(): void {
+  const container = byId("companyList");
+  if (!companies.length) {
+    container.innerHTML = `<p class="muted-line">Noch keine Firmen.</p>`;
+    return;
   }
-}
-
-// ---- API Explorer -------------------------------------------------------
-
-function currentEndpoint(): EndpointDef {
-  const id = byId<HTMLSelectElement>("apiEndpoint").value;
-  return ENDPOINTS.find((e) => e.id === id) ?? ENDPOINTS[0];
-}
-
-function initApiExplorer(): void {
-  const sel = byId<HTMLSelectElement>("apiEndpoint");
-  // Gruppiert als <optgroup> rendern, Reihenfolge wie im Katalog.
-  const groups: string[] = [];
-  for (const e of ENDPOINTS) if (!groups.includes(e.group)) groups.push(e.group);
-  sel.innerHTML = groups
-    .map((g) => {
-      const opts = ENDPOINTS.filter((e) => e.group === g)
-        .map((e) => `<option value="${e.id}">${escapeHtml(e.label)}</option>`)
-        .join("");
-      return `<optgroup label="${escapeHtml(g)}">${opts}</optgroup>`;
-    })
+  container.innerHTML = companies
+    .map(
+      (entry, index) => `
+      <label class="company-item">
+        <input type="checkbox" data-index="${index}" ${entry.checked ? "checked" : ""} />
+        <span>${escapeHtml(entry.name)}</span>
+        <button type="button" class="remove-btn" data-remove="${index}" title="Entfernen">×</button>
+      </label>`
+    )
     .join("");
 
-  sel.addEventListener("change", renderEndpointForm);
-  byId("apiSend").addEventListener("click", sendApiRequest);
-  byId("apiCopy").addEventListener("click", copyApiResult);
-  renderEndpointForm();
+  container.querySelectorAll<HTMLInputElement>("input[type=checkbox]").forEach((box) => {
+    box.addEventListener("change", () => {
+      const index = Number(box.dataset.index);
+      if (companies[index]) companies[index].checked = box.checked;
+    });
+  });
+  container.querySelectorAll<HTMLButtonElement>("button[data-remove]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const index = Number(btn.dataset.remove);
+      companies.splice(index, 1);
+      renderCompanyList();
+    });
+  });
 }
 
-function renderEndpointForm(): void {
-  const ep = currentEndpoint();
-
-  byId("apiMeta").innerHTML =
-    `<span class="badge ${ep.method === "POST" ? "post" : "get"}">${ep.method}</span>` +
-    `<span class="credits">${escapeHtml(ep.credits)} Credits</span>` +
-    `<div class="desc">${escapeHtml(ep.description)}</div>`;
-
-  if (ep.search) renderSearchForm(ep);
-  else byId("apiParams").innerHTML = ep.params.map(renderParam).join("");
-
-  byId("apiFields").innerHTML =
-    "<ul>" + ep.fields.map((f) => `<li>${escapeHtml(f)}</li>`).join("") + "</ul>";
-
-  // Ergebnis der vorherigen Anfrage zurücksetzen.
-  setStatus("apiStatus", "");
-  hideResult();
+function selectedCompanies(): string[] {
+  return companies.filter((entry) => entry.checked).map((entry) => entry.name);
 }
 
-function renderParam(p: EndpointParam): string {
-  const req = p.required ? ' <span class="req">*</span>' : "";
-  const hint = p.hint ? `<span class="phint">${escapeHtml(p.hint)}</span>` : "";
-  if (p.type === "bool") {
-    return `<label class="chk"><input type="checkbox" data-param="${p.name}" /> ${escapeHtml(p.label)}</label>`;
-  }
-  let field: string;
-  if (p.type === "textarea") {
-    field = `<textarea data-param="${p.name}" rows="3" placeholder="${escapeHtml(p.placeholder ?? "")}"></textarea>`;
-  } else if (p.options && p.options.length > 0) {
-    // Select-Dropdown wenn options vorhanden
-    const opts = p.options.map((o) => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join("");
-    field = `<select data-param="${p.name}">${opts}</select>`;
-  } else {
-    const inputType = p.type === "number" ? "number" : "text";
-    field = `<input type="${inputType}" data-param="${p.name}" placeholder="${escapeHtml(p.placeholder ?? "")}" />`;
-  }
-  return `<div class="param"><label>${escapeHtml(p.label)}${req}</label>${field}${hint}</div>`;
-}
+// ---- Report erzeugen ----------------------------------------------------
 
-function collectParamValues(ep: EndpointDef): Record<string, string | boolean> {
-  const vals: Record<string, string | boolean> = {};
-  for (const p of ep.params) {
-    const el = document.querySelector<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>(
-      `#apiParams [data-param="${p.name}"]`
-    );
-    if (!el) continue;
-    if (p.type === "bool") vals[p.name] = (el as HTMLInputElement).checked;
-    else vals[p.name] = el.value.trim();
-  }
-  return vals;
-}
-
-async function sendApiRequest(): Promise<void> {
-  const ep = currentEndpoint();
-
-  let req: { path: string; method: "GET" | "POST"; body?: unknown };
-  try {
-    if (ep.search) {
-      req = { path: ep.search.path, method: "POST", body: buildSearchPayload(ep) };
-    } else {
-      const vals = collectParamValues(ep);
-      const missing = ep.params.filter((p) => p.required && !String(vals[p.name] ?? "").trim());
-      if (missing.length) {
-        setStatus("apiStatus", `Pflichtfeld fehlt: ${missing.map((m) => m.label).join(", ")}`, "error");
-        return;
-      }
-      req = ep.build!(vals);
-    }
-  } catch (err) {
-    setStatus("apiStatus", (err as Error).message, "error");
+async function runGenerate(): Promise<void> {
+  const names = selectedCompanies();
+  if (!names.length) {
+    setStatus("Keine Firma ausgewählt.", "err");
     return;
   }
 
-  // Eventuell geänderte Proxy-URL vor dem Call speichern.
-  await persist();
-  setStatus("apiStatus", "lade…");
-  hideResult();
-  const t0 = performance.now();
+  const feature = currentFeature();
+  const options = readOptions();
+  const button = byId<HTMLButtonElement>("generate");
+  button.disabled = true;
+  setStatus(`Erzeuge Report für ${names.length} Firma(en) …`);
+
   try {
-    const data = await callEndpoint(req.path, req.method, req.body);
-    const ms = Math.round(performance.now() - t0);
-    showResult(data);
-    setStatus("apiStatus", `OK (${ms} ms) · ${ep.method} ${req.path}`, "success");
+    const summary = await generateReports(feature.key, names, options);
+    setStatus(summarize(summary), summary.written.length ? "ok" : "err");
   } catch (err) {
-    setStatus("apiStatus", (err as Error).message, "error");
+    setStatus((err as Error).message, "err");
+  } finally {
+    button.disabled = false;
   }
 }
 
-let lastApiResponse: unknown = null;
+function readOptions(): ReportOptions {
+  return {
+    yearFrom: parseYear(byId<HTMLInputElement>("yearFrom").value),
+    yearTo: parseYear(byId<HTMLInputElement>("yearTo").value),
+    target: byId<HTMLSelectElement>("targetMode").value as TargetMode,
+  };
+}
 
-function showResult(data: unknown): void {
-  lastApiResponse = data;
-  byId<HTMLPreElement>("apiResult").textContent = JSON.stringify(data, null, 2);
-  byId("apiResult").classList.remove("hidden");
-  byId("apiResultHead").classList.remove("hidden");
-  
-  // Feld-Filter anzeigen, wenn selectableFields vorhanden
-  const ep = currentEndpoint();
-  const filterBox = byId("apiFieldFilterBox");
-  if (ep.selectableFields && ep.selectableFields.length > 0) {
-    const filterDiv = byId("apiFieldFilter");
-    filterDiv.innerHTML = ep.selectableFields
-      .map((f) => `<label class="chk"><input type="checkbox" data-field="${escapeHtml(f.key)}" checked /> ${escapeHtml(f.label)}</label>`)
-      .join("");
-    filterDiv.querySelectorAll<HTMLInputElement>("input[data-field]").forEach((inp) => {
-      inp.addEventListener("change", applyFieldFilter);
-    });
-    filterBox.classList.remove("hidden");
-  } else {
-    filterBox.classList.add("hidden");
+function parseYear(value: string): number | null {
+  const num = Number(value.trim());
+  return Number.isInteger(num) && num > 1900 && num < 3000 ? num : null;
+}
+
+function summarize(summary: ReportSummary): string {
+  if (!summary.written.length) {
+    return `Kein Report erstellt. Fehler: ${summary.failed[0]?.error ?? "unbekannt"}`;
   }
+  const base = `${summary.written.length} Report(s) „${summary.featureLabel}" erstellt.`;
+  if (!summary.failed.length) return base;
+  return `${base} Fehlgeschlagen (${summary.failed.length}): ${summary.failed.map((f) => f.company).join(", ")}`;
 }
 
-function hideResult(): void {
-  byId("apiResult").classList.add("hidden");
-  byId("apiResultHead").classList.add("hidden");
-  byId("apiFieldFilterBox").classList.add("hidden");
+// ---- Proxy / Status -----------------------------------------------------
+
+async function testConnection(showStatus: boolean): Promise<void> {
+  if (showStatus) setStatus("teste Verbindung …");
+  const ok = await checkHealth();
+  setHealth(ok);
+  if (showStatus) setStatus(ok ? "Proxy OK" : "Proxy nicht erreichbar", ok ? "ok" : "err");
 }
 
-function applyFieldFilter(): void {
-  if (!lastApiResponse) return;
-  const ep = currentEndpoint();
-  if (!ep.selectableFields) return;
-  
-  const selectedFields = Array.from(
-    document.querySelectorAll<HTMLInputElement>("#apiFieldFilter input[data-field]:checked")
-  ).map((inp) => inp.dataset.field!);
-  
-  const filtered = filterResponseByFields(lastApiResponse, selectedFields);
-  byId<HTMLPreElement>("apiResult").textContent = JSON.stringify(filtered, null, 2);
+function setStatus(message: string, kind: "" | "ok" | "err" = ""): void {
+  const el = byId("status");
+  el.textContent = message;
+  el.className = `status ${kind}`;
 }
 
-function filterResponseByFields(data: unknown, selectedFields: string[]): unknown {
-  if (Array.isArray(data)) {
-    return data.map((item) => filterResponseByFields(item, selectedFields));
-  }
-  if (data !== null && typeof data === "object") {
-    const result: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
-      // Top-level keys, arrays, und "company_id" immer einbinden
-      if (key === "ubos" && Array.isArray(value)) {
-        result[key] = value.map((ubo) => filterResponseByFields(ubo, selectedFields));
-      } else if (key === "company_id" || selectedFields.includes(key)) {
-        result[key] = value;
-      }
-    }
-    return result;
-  }
-  return data;
+function setHealth(ok: boolean): void {
+  byId("healthDot").className = `health-dot ${ok ? "ok" : "err"}`;
 }
 
-function copyApiResult(): void {
-  const text = byId<HTMLPreElement>("apiResult").textContent ?? "";
-  if (!text) return;
-  navigator.clipboard?.writeText(text).then(
-    () => setStatus("apiStatus", "JSON kopiert ✓", "success"),
-    () => setStatus("apiStatus", "Kopieren nicht möglich.", "error")
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (char) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]!
   );
-}
-
-// ---- Filter-Builder (erweiterte Suche) ----------------------------------
-
-function renderSearchForm(ep: EndpointDef): void {
-  const s = ep.search!;
-  const locHtml = s.location
-    ? `<details class="loc">
-         <summary>Umkreissuche (optional)</summary>
-         <div class="param"><label>Breitengrad (latitude)</label><input id="locLat" type="number" placeholder="52.5200" /></div>
-         <div class="param"><label>Längengrad (longitude)</label><input id="locLng" type="number" placeholder="13.4050" /></div>
-         <div class="param"><label>Radius (km)</label><input id="locRadius" type="number" placeholder="10" /></div>
-       </details>`
-    : "";
-  byId("apiParams").innerHTML = `
-    <div class="param">
-      <label>Suchbegriff (Name)</label>
-      <input id="searchQuery" type="text" placeholder="optional – z. B. Descartes" />
-      <span class="phint">Freitextsuche über aktuelle &amp; frühere Namen.</span>
-    </div>
-    <div class="filter-builder">
-      <div class="fb-head"><span>Filter · UND-verknüpft</span><button id="addFilter" class="secondary small" type="button">+ Filter</button></div>
-      <div id="filterRows"></div>
-    </div>
-    ${locHtml}
-    <div class="param two">
-      <div><label>Seite</label><input id="pgPage" type="number" placeholder="1" /></div>
-      <div><label>pro Seite</label><input id="pgPer" type="number" placeholder="10" /></div>
-    </div>`;
-  byId("addFilter").addEventListener("click", () => addFilterRow(s.fields));
-  addFilterRow(s.fields); // mit einer leeren Zeile starten
-}
-
-function fieldDef(fields: FilterFieldDef[], field: string): FilterFieldDef {
-  return fields.find((f) => f.field === field) ?? fields[0];
-}
-
-function addFilterRow(fields: FilterFieldDef[]): void {
-  const row = document.createElement("div");
-  row.className = "filter-row";
-  const fieldOpts = fields
-    .map((f) => `<option value="${f.field}">${escapeHtml(f.label)}${f.enterprise ? " ★" : ""}</option>`)
-    .join("");
-  row.innerHTML = `
-    <div class="fr-top">
-      <select class="f-field">${fieldOpts}</select>
-      <select class="f-op"></select>
-      <button class="rm secondary small" type="button" title="Filter entfernen">✕</button>
-    </div>
-    <div class="f-val"></div>`;
-  byId("filterRows").appendChild(row);
-
-  row.querySelector<HTMLSelectElement>(".f-field")!.addEventListener("change", () => syncRowOps(row, fields));
-  row.querySelector<HTMLSelectElement>(".f-op")!.addEventListener("change", () => renderRowValue(row, fields));
-  row.querySelector<HTMLButtonElement>(".rm")!.addEventListener("click", () => row.remove());
-  syncRowOps(row, fields);
-}
-
-function syncRowOps(row: HTMLElement, fields: FilterFieldDef[]): void {
-  const def = fieldDef(fields, row.querySelector<HTMLSelectElement>(".f-field")!.value);
-  row.querySelector<HTMLSelectElement>(".f-op")!.innerHTML = def.ops
-    .map((op) => `<option value="${op}">${escapeHtml(FILTER_OP_LABELS[op])}</option>`)
-    .join("");
-  renderRowValue(row, fields);
-}
-
-function renderRowValue(row: HTMLElement, fields: FilterFieldDef[]): void {
-  const def = fieldDef(fields, row.querySelector<HTMLSelectElement>(".f-field")!.value);
-  const op = row.querySelector<HTMLSelectElement>(".f-op")!.value as FilterOp;
-  row.querySelector<HTMLElement>(".f-val")!.innerHTML = valueInputsHtml(def, op);
-}
-
-/** Einzelnes, typgerechtes Eingabefeld für ein Filterfeld. */
-function fieldInput(def: FilterFieldDef, cls: string): string {
-  if (def.kind === "bool" || def.kind === "enum") {
-    const opts = (def.options ?? []).map((o) => `<option value="${escapeHtml(o)}">${escapeHtml(o)}</option>`).join("");
-    const empty = def.kind === "enum" ? '<option value="">– wählen –</option>' : "";
-    return `<select class="${cls}">${empty}${opts}</select>`;
-  }
-  if (def.kind === "money") return `<input class="${cls}" type="number" step="0.01" placeholder="EUR" />`;
-  if (def.kind === "number") return `<input class="${cls}" type="number" placeholder="Zahl" />`;
-  if (def.kind === "date") return `<input class="${cls}" type="text" placeholder="DD-MM-YYYY" />`;
-  return `<input class="${cls}" type="text" placeholder="Wert" />`;
-}
-
-function valueInputsHtml(def: FilterFieldDef, op: FilterOp): string {
-  let inner: string;
-  if (op === "values") {
-    inner = `<input class="v-values" type="text" placeholder="Wert1, Wert2, …" />`;
-  } else if (op === "keywords") {
-    inner = `<input class="v-keywords" type="text" placeholder="wort1, wort2, …" />`;
-  } else if (op === "range") {
-    inner = `<div class="range"><span>min</span>${fieldInput(def, "v-min")}<span>max</span>${fieldInput(def, "v-max")}</div>`;
-  } else {
-    inner = fieldInput(def, "v-value");
-  }
-  const hint = def.hint ? `<span class="phint">${escapeHtml(def.hint)}</span>` : "";
-  const enumHint =
-    op === "values" && def.options ? `<span class="phint">Optionen: ${escapeHtml(def.options.join(", "))}</span>` : "";
-  return inner + hint + enumHint;
-}
-
-function splitList(s: string): string[] {
-  return s.split(",").map((x) => x.trim()).filter(Boolean);
-}
-
-function readFilterRows(fields: FilterFieldDef[]): FilterCondition[] {
-  const out: FilterCondition[] = [];
-  for (const row of Array.from(document.querySelectorAll<HTMLElement>("#filterRows .filter-row"))) {
-    const field = row.querySelector<HTMLSelectElement>(".f-field")!.value;
-    const def = fields.find((f) => f.field === field);
-    if (!def) continue;
-    const op = row.querySelector<HTMLSelectElement>(".f-op")!.value as FilterOp;
-    const conv = (raw: string): string => (def.kind === "money" ? eurToCents(raw) : raw.trim());
-    const cond: FilterCondition = { field };
-
-    if (op === "values") {
-      const vs = splitList(qVal(row, ".v-values")).map(conv).filter(Boolean);
-      if (!vs.length) continue;
-      cond.values = vs;
-    } else if (op === "keywords") {
-      const ks = splitList(qVal(row, ".v-keywords"));
-      if (!ks.length) continue;
-      cond.keywords = ks;
-    } else if (op === "range") {
-      const min = conv(qVal(row, ".v-min"));
-      const max = conv(qVal(row, ".v-max"));
-      if (min) cond.min = min;
-      if (max) cond.max = max;
-      if (cond.min === undefined && cond.max === undefined) continue;
-    } else {
-      const v = conv(qVal(row, ".v-value"));
-      if (!v) continue;
-      cond.value = v;
-    }
-    out.push(cond);
-  }
-  return out;
-}
-
-function qVal(row: HTMLElement, sel: string): string {
-  const el = row.querySelector<HTMLInputElement | HTMLSelectElement>(sel);
-  return el ? el.value.trim() : "";
-}
-
-function buildSearchPayload(ep: EndpointDef): unknown {
-  const s = ep.search!;
-  const body: Record<string, unknown> = {};
-
-  const q = byId<HTMLInputElement>("searchQuery").value.trim();
-  if (q) body.query = { value: q };
-
-  const filters = readFilterRows(s.fields);
-  if (filters.length) body.filters = filters;
-
-  if (s.location) {
-    const lat = byId<HTMLInputElement>("locLat").value.trim();
-    const lng = byId<HTMLInputElement>("locLng").value.trim();
-    const rad = byId<HTMLInputElement>("locRadius").value.trim();
-    if (lat && lng) {
-      body.location = { latitude: Number(lat), longitude: Number(lng), ...(rad ? { radius: Number(rad) } : {}) };
-    } else if (lat || lng) {
-      throw new Error("Umkreissuche braucht latitude UND longitude.");
-    }
-  }
-
-  const page = byId<HTMLInputElement>("pgPage").value.trim();
-  const per = byId<HTMLInputElement>("pgPer").value.trim();
-  if (page || per) {
-    body.pagination = { ...(page ? { page: Number(page) } : {}), ...(per ? { per_page: Number(per) } : {}) };
-  }
-
-  if (!body.query && !body.filters && !body.location) {
-    throw new Error("Bitte mindestens einen Suchbegriff, Filter oder eine Umkreissuche angeben.");
-  }
-  return body;
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!
-  );
-}
-
-async function renderUsage(): Promise<void> {
-  try {
-    const u = (await getUsage()) as any;
-    const total = Number(u?.total ?? 0);
-    const totalEl = document.getElementById("usageTotal");
-    if (totalEl) totalEl.textContent = `${total} Credits`;
-    const breakdown = document.getElementById("usageBreakdown");
-    if (breakdown) {
-      const by = u?.byEndpoint ?? {};
-      const rows = Object.entries(by)
-        .map(([k, v]) => `<div class="ub-row"><span class="ub-endpoint">${escapeHtml(k)}</span><span class="ub-credits">${v}</span></div>`)
-        .join("");
-      breakdown.innerHTML = rows || "<div>keine Daten</div>";
-    }
-  } catch (err) {
-    setStatus("apiStatus", (err as Error).message, "error");
-  }
 }

@@ -20,10 +20,10 @@ app.use(
 app.use(express.json());
 app.use("/api", router);
 
-if (!process.env.OPENREGISTER_API_KEY) {
+if (!process.env.HANDELSREGISTER_API_KEY) {
   // eslint-disable-next-line no-console
   console.warn(
-    "\x1b[33m[WARN] OPENREGISTER_API_KEY ist nicht gesetzt. Lege proxy/.env aus .env.example an.\x1b[0m"
+    "\x1b[33m[WARN] HANDELSREGISTER_API_KEY ist nicht gesetzt. Lege proxy/.env aus .env.example an.\x1b[0m"
   );
 }
 
@@ -38,7 +38,7 @@ async function start(): Promise<void> {
     const httpsOptions = await devCerts.getHttpsServerOptions();
     https.createServer({ key: httpsOptions.key, cert: httpsOptions.cert }, app).listen(PORT, () => {
       // eslint-disable-next-line no-console
-      console.log(`OpenRegister-Proxy läuft über HTTPS auf https://localhost:${PORT}`);
+      console.log(`handelsregister.ai-Proxy läuft über HTTPS auf https://localhost:${PORT}`);
       // eslint-disable-next-line no-console
       console.log(`Erlaubter Origin (CORS): ${ALLOWED_ORIGIN}`);
     });
@@ -51,7 +51,7 @@ async function start(): Promise<void> {
     );
     http.createServer(app).listen(PORT, () => {
       // eslint-disable-next-line no-console
-      console.log(`OpenRegister-Proxy läuft über HTTP auf http://localhost:${PORT}`);
+      console.log(`handelsregister.ai-Proxy läuft über HTTP auf http://localhost:${PORT}`);
     });
   }
 }

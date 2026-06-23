@@ -46,11 +46,6 @@ module.exports = async (env, options) => {
         template: "./src/commands/commands.html",
         chunks: ["commands"],
       }),
-      new HtmlWebpackPlugin({
-        filename: "notify.html",
-        template: "./src/notify/notify.html",
-        chunks: [],
-      }),
       new CopyWebpackPlugin({
         patterns: [
           { from: "assets", to: "assets" },

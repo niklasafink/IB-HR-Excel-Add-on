@@ -1,30 +1,20 @@
 /**
- * Dünner Service gegen die OpenRegister-API.
- * Hält den API-Key (Bearer) serverseitig, normalisiert Fehler und cached
+ * Dünner Service gegen die handelsregister.ai-API.
+ * Hält den API-Key serverseitig, normalisiert Fehler und cached
  * GET-Antworten pro Upstream-Pfad, um Credits zu sparen.
  *
  * Generische Bausteine:
  *   proxyGet(path)         – authentifizierter, gecachter GET
  *   proxyPost(path, body)  – authentifizierter POST (ungecacht, z. B. Suche)
  *
- * Die konkreten Endpunkte werden in routes.ts zusammengebaut. Übersicht:
- *   GET  /v1/autocomplete/company?query=            (1)
- *   POST /v1/search/company                         (10)
- *   GET  /v1/company/{id}[?realtime&export]         (10, +10 realtime)
- *   GET  /v1/company/{id}/financials                (10)
- *   GET  /v0/company/{id}/contact                   (10, veraltet)
- *   GET  /v1/company/{id}/owners[?realtime&export&best_available]  (10/20)
- *   GET  /v1/company/{id}/ubo                       (25)
- *   GET  /v1/company/{id}/holdings                  (10)
- *   GET  /v1/company/{id}/owners/historical         (10)
- *   GET  /v1/person/{person_id}                     (10)
- *   POST /v1/search/person                          (10)
- *   GET  /v1/person/{person_id}/holdings            (10)
- *   GET  /v0/search/lookup?url=                     (10)
+ * Die konkreten Endpunkte werden in routes.ts zusammengebaut.
  */
 
-const BASE_URL = (process.env.OPENREGISTER_BASE_URL || "https://api.openregister.de").replace(/\/+$/, "");
-const API_KEY = process.env.OPENREGISTER_API_KEY || "";
+const BASE_URL = (
+  process.env.HANDELSREGISTER_BASE_URL ||
+  "https://handelsregister.ai/api"
+).replace(/\/+$/, "");
+const API_KEY = process.env.HANDELSREGISTER_API_KEY || "";
 const CACHE_TTL_MS = (Number(process.env.CACHE_TTL_SECONDS) || 86400) * 1000;
 import { recordUsage } from "./usage.js";
 
@@ -68,13 +58,13 @@ export function assertConfigured(): void {
   if (!API_KEY) {
     throw new UpstreamError(
       500,
-      "OPENREGISTER_API_KEY ist nicht gesetzt. Bitte proxy/.env aus .env.example anlegen."
+      "HANDELSREGISTER_API_KEY ist nicht gesetzt. Bitte proxy/.env aus .env.example anlegen."
     );
   }
 }
 
 /**
- * Führt einen authentifizierten Request gegen die OpenRegister-API aus.
+ * Führt einen authentifizierten Request gegen die handelsregister.ai-API aus.
  * Retryt einmal bei 429 mit kurzem Backoff. Wirft UpstreamError bei Fehlern.
  */
 async function apiRequest<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<T> {
@@ -88,14 +78,14 @@ async function apiRequest<T>(method: "GET" | "POST", path: string, body?: unknow
       res = await fetch(url, {
         method,
         headers: {
-          Authorization: `Bearer ${API_KEY}`,
+          "x-api-key": API_KEY,
           Accept: "application/json",
           ...(hasBody ? { "Content-Type": "application/json" } : {}),
         },
         ...(hasBody ? { body: JSON.stringify(body) } : {}),
       });
     } catch (err) {
-      throw new UpstreamError(502, `Netzwerkfehler beim Aufruf der OpenRegister-API: ${(err as Error).message}`);
+      throw new UpstreamError(502, `Netzwerkfehler beim Aufruf der handelsregister.ai-API: ${(err as Error).message}`);
     }
 
     if (res.status === 429 && attempt === 0) {
@@ -113,26 +103,37 @@ async function apiRequest<T>(method: "GET" | "POST", path: string, body?: unknow
     return (await res.json()) as T;
   }
 
-  throw new UpstreamError(429, "OpenRegister-API: Rate-Limit erreicht (429) – bitte später erneut versuchen.");
+  throw new UpstreamError(429, "handelsregister.ai-API: Rate-Limit erreicht (429) - bitte später erneut versuchen.");
 }
 
 function errorMessageForStatus(status: number, body: unknown): string {
-  const detail = typeof body === "object" && body !== null && "message" in body
-    ? String((body as Record<string, unknown>).message)
-    : "";
+  const detail = extractErrorDetail(body);
   switch (status) {
     case 401:
     case 403:
-      return "OpenRegister-API: Authentifizierung fehlgeschlagen (Key ungültig oder Credits aufgebraucht).";
+      return "handelsregister.ai-API: Authentifizierung fehlgeschlagen (Key ungültig oder Credits aufgebraucht).";
     case 404:
-      return "OpenRegister-API: Nicht gefunden.";
+      return "handelsregister.ai-API: Nicht gefunden.";
     case 402:
-      return "OpenRegister-API: Keine Credits mehr verfügbar.";
+      return "handelsregister.ai-API: Keine Credits mehr verfügbar.";
     case 429:
-      return "OpenRegister-API: Rate-Limit erreicht (429).";
+      return "handelsregister.ai-API: Rate-Limit erreicht (429).";
     default:
-      return `OpenRegister-API-Fehler (${status})${detail ? ": " + detail : ""}.`;
+      return `handelsregister.ai-API-Fehler (${status})${detail ? ": " + detail : ""}.`;
   }
+}
+
+function extractErrorDetail(body: unknown): string {
+  if (typeof body !== "object" || body === null) return "";
+  const record = body as Record<string, unknown>;
+  if (typeof record.message === "string") return record.message;
+  if (typeof record.error === "string") return record.error;
+  if (typeof record.error === "object" && record.error !== null) {
+    const error = record.error as Record<string, unknown>;
+    if (typeof error.message === "string") return error.message;
+    if (typeof error.code === "string") return error.code;
+  }
+  return "";
 }
 
 async function safeJson(res: Response): Promise<unknown> {

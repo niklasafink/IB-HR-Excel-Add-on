@@ -1,8 +1,8 @@
 {
-  "name": "openregister-excel-addin",
+  "name": "handelsregister-ai-excel-addin",
   "version": "1.0.0",
   "private": true,
-  "description": "Excel Add-in: Firmennamen markieren und strukturierte OpenRegister-Daten (Bilanz, GuV, Kennzahlen, Stammdaten) in ein neues Tabellenblatt laden.",
+  "description": "Excel Add-in: API-Cockpit fuer handelsregister.ai Features.",
   "scripts": {
     "dev-certs": "office-addin-dev-certs install",
     "start": "webpack serve --mode development",

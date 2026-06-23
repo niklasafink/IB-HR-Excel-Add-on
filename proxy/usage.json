@@ -1,0 +1,11 @@
+{
+  "totalCredits": 45,
+  "totalCalls": 8,
+  "since": "2026-06-23T16:13:44.618Z",
+  "byEndpoint": {
+    "fetch-organization": {
+      "credits": 45,
+      "calls": 8
+    }
+  }
+}
