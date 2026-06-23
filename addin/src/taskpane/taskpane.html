@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gordon's Register – Admin</title>
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <link rel="stylesheet" href="taskpane.css" />
+  </head>
+  <body>
+    <main id="app" class="hidden">
+      <h1>Gordon's Register</h1>
+      <section class="card">
+        <h2>Verbindung</h2>
+        <input type="text" id="proxyUrl" placeholder="Proxy-URL (Standard)" />
+        <div class="row">
+          <button id="testConn" class="secondary">Testen</button>
+          <span id="connStatus" class="status"></span>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Firmensuche</h2>
+        <input type="text" id="debugName" placeholder="Firmenname" />
+        <button id="debugSearch" class="secondary full">Suchen</button>
+        <ul id="debugResults" class="results"></ul>
+      </section>
+
+      <section class="card">
+        <h2>Konfiguration</h2>
+        <div class="kv">
+          <span>Jahre (auto)</span>
+          <input type="number" id="autoYearCount" min="1" max="10" />
+        </div>
+        <div class="kv">
+          <span>Werteinheit</span>
+          <select id="scale">
+            <option value="original">Original</option>
+            <option value="thousand">Tausend</option>
+            <option value="million">Millionen</option>
+          </select>
+        </div>
+        <label class="chk"><input type="checkbox" id="removeEmpty" /> Leere Zeilen entfernen</label>
+        <label class="chk"><input type="checkbox" id="centsToEuro" /> Werte von Cent auf Euro (÷100)</label>
+      </section>
+
+      <section class="card">
+        <h2>Kennzahlen-Felder</h2>
+        <div id="kzFields" class="fields"></div>
+      </section>
+
+      <section class="card">
+        <h2>Stammdaten-Felder</h2>
+        <div id="stFields" class="fields"></div>
+      </section>
+
+      <section class="card">
+        <button id="saveCfg" class="primary full">Konfiguration speichern</button>
+        <span id="saveStatus" class="status"></span>
+      </section>
+
+      <section class="card">
+        <h2>API Explorer</h2>
+        <p class="hint">Jeder OpenRegister-Endpunkt einzeln testen – Parameter setzen, senden, rohe JSON-Antwort &amp; Feld-Referenz ansehen. Verbraucht echte Credits.</p>
+        <select id="apiEndpoint"></select>
+        <div id="apiMeta" class="apimeta"></div>
+        <div id="apiParams" class="apiparams"></div>
+        <button id="apiSend" class="primary full">Senden</button>
+        <span id="apiStatus" class="status"></span>
+        <details id="apiFieldsBox" class="apifields">
+          <summary>Antwortfelder (laut Doku)</summary>
+          <div id="apiFields"></div>
+        </details>
+        <div class="apiresult-head hidden" id="apiResultHead">
+          <span class="apiresult-title">Antwort</span>
+          <button id="apiCopy" class="secondary small">Kopieren</button>
+        </div>
+        <pre id="apiResult" class="apiresult hidden"></pre>
+        <details id="apiFieldFilterBox" class="apifields hidden">
+          <summary>Angezeigte Felder (Filter)</summary>
+          <div id="apiFieldFilter" class="api-field-filter"></div>
+        </details>
+      </section>
+
+      <section class="card">
+        <h2>Usage (Dev)</h2>
+        <div id="usageCard">
+          <div>Total: <span id="usageTotal">–</span></div>
+          <div id="usageBreakdown" class="usage-breakdown"></div>
+          <div class="row">
+            <button id="refreshUsage" class="secondary">Aktualisieren</button>
+            <button id="resetUsage" class="secondary">Zurücksetzen</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Info</h2>
+        <div class="info" id="info"></div>
+      </section>
+    </main>
+  </body>
+</html>

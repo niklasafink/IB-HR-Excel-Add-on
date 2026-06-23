@@ -1,0 +1,323 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<OfficeApp
+  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+  xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
+  xsi:type="TaskPaneApp">
+
+  <Id>c6890c26-5c0b-4f0e-9a3d-1f0b9a2e7c11</Id>
+  <Version>1.0.0.0</Version>
+  <ProviderName>Gordon's Register</ProviderName>
+  <DefaultLocale>de-DE</DefaultLocale>
+  <DisplayName DefaultValue="Gordon's Register" />
+  <Description DefaultValue="Firmennamen markieren und strukturierte OpenRegister-Daten (Bilanz, GuV, Kennzahlen, Stammdaten) in ein neues Tabellenblatt laden." />
+  <IconUrl DefaultValue="https://localhost:3000/assets/icon-32.png" />
+  <HighResolutionIconUrl DefaultValue="https://localhost:3000/assets/icon-80.png" />
+  <SupportUrl DefaultValue="https://openregister.de" />
+
+  <AppDomains>
+    <AppDomain>https://localhost:3000</AppDomain>
+  </AppDomains>
+
+  <Hosts>
+    <Host Name="Workbook" />
+  </Hosts>
+
+  <Requirements>
+    <Sets DefaultMinVersion="1.7">
+      <Set Name="ExcelApi" MinVersion="1.7" />
+    </Sets>
+  </Requirements>
+
+  <DefaultSettings>
+    <SourceLocation DefaultValue="https://localhost:3000/taskpane.html" />
+  </DefaultSettings>
+
+  <Permissions>ReadWriteDocument</Permissions>
+
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
+    <Hosts>
+      <Host xsi:type="Workbook">
+        <DesktopFormFactor>
+          <GetStarted>
+            <Title resid="GetStarted.Title" />
+            <Description resid="GetStarted.Description" />
+            <LearnMoreUrl resid="GetStarted.LearnMoreUrl" />
+          </GetStarted>
+
+          <FunctionFile resid="Commands.Url" />
+
+          <ExtensionPoint xsi:type="PrimaryCommandSurface">
+            <CustomTab id="OpenRegister.Tab">
+              <Group id="OpenRegister.Group">
+                <Label resid="Group.Label" />
+                <Icon>
+                  <bt:Image size="16" resid="Icon.16" />
+                  <bt:Image size="32" resid="Icon.32" />
+                  <bt:Image size="80" resid="Icon.80" />
+                </Icon>
+                <Control xsi:type="Button" id="GR.Bilanz">
+                  <Label resid="Btn.Bilanz" />
+                  <Supertip>
+                    <Title resid="Btn.Bilanz" />
+                    <Description resid="Btn.Bilanz.Tip" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Bilanz.16" />
+                    <bt:Image size="32" resid="Bilanz.32" />
+                    <bt:Image size="80" resid="Bilanz.80" />
+                  </Icon>
+                  <Action xsi:type="ExecuteFunction">
+                    <FunctionName>loadBilanz</FunctionName>
+                  </Action>
+                </Control>
+                <Control xsi:type="Button" id="GR.GuV">
+                  <Label resid="Btn.GuV" />
+                  <Supertip>
+                    <Title resid="Btn.GuV" />
+                    <Description resid="Btn.GuV.Tip" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="GuV.16" />
+                    <bt:Image size="32" resid="GuV.32" />
+                    <bt:Image size="80" resid="GuV.80" />
+                  </Icon>
+                  <Action xsi:type="ExecuteFunction">
+                    <FunctionName>loadGuv</FunctionName>
+                  </Action>
+                </Control>
+                <Control xsi:type="Button" id="GR.Kennzahlen">
+                  <Label resid="Btn.Kennzahlen" />
+                  <Supertip>
+                    <Title resid="Btn.Kennzahlen" />
+                    <Description resid="Btn.Kennzahlen.Tip" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Kennzahlen.16" />
+                    <bt:Image size="32" resid="Kennzahlen.32" />
+                    <bt:Image size="80" resid="Kennzahlen.80" />
+                  </Icon>
+                  <Action xsi:type="ExecuteFunction">
+                    <FunctionName>loadKennzahlen</FunctionName>
+                  </Action>
+                </Control>
+                <Control xsi:type="Button" id="GR.Stammdaten">
+                  <Label resid="Btn.Stammdaten" />
+                  <Supertip>
+                    <Title resid="Btn.Stammdaten" />
+                    <Description resid="Btn.Stammdaten.Tip" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Stammdaten.16" />
+                    <bt:Image size="32" resid="Stammdaten.32" />
+                    <bt:Image size="80" resid="Stammdaten.80" />
+                  </Icon>
+                  <Action xsi:type="ExecuteFunction">
+                    <FunctionName>loadStammdaten</FunctionName>
+                  </Action>
+                </Control>
+                <Control xsi:type="Button" id="GR.Alles">
+                  <Label resid="Btn.Alles" />
+                  <Supertip>
+                    <Title resid="Btn.Alles" />
+                    <Description resid="Btn.Alles.Tip" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Alles.16" />
+                    <bt:Image size="32" resid="Alles.32" />
+                    <bt:Image size="80" resid="Alles.80" />
+                  </Icon>
+                  <Action xsi:type="ExecuteFunction">
+                    <FunctionName>loadAlles</FunctionName>
+                  </Action>
+                </Control>
+              </Group>
+              <Group id="GR.ApiGroup">
+                <Label resid="ApiGroup.Label" />
+                <Icon>
+                  <bt:Image size="16" resid="Admin.16" />
+                  <bt:Image size="32" resid="Admin.32" />
+                  <bt:Image size="80" resid="Admin.80" />
+                </Icon>
+                <Control xsi:type="Button" id="GR.ApiSearch">
+                  <Label resid="Btn.ApiSearch" />
+                  <Supertip>
+                    <Title resid="Btn.ApiSearch" />
+                    <Description resid="Btn.ApiSearch.Tip" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Admin.16" />
+                    <bt:Image size="32" resid="Admin.32" />
+                    <bt:Image size="80" resid="Admin.80" />
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>GordonsRegister.Admin</TaskpaneId>
+                    <SourceLocation resid="Taskpane.ApiSearch.Url" />
+                  </Action>
+                </Control>
+                <Control xsi:type="Button" id="GR.ApiUbo">
+                  <Label resid="Btn.ApiUbo" />
+                  <Supertip>
+                    <Title resid="Btn.ApiUbo" />
+                    <Description resid="Btn.ApiUbo.Tip" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Admin.16" />
+                    <bt:Image size="32" resid="Admin.32" />
+                    <bt:Image size="80" resid="Admin.80" />
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>GordonsRegister.Admin</TaskpaneId>
+                    <SourceLocation resid="Taskpane.ApiUbo.Url" />
+                  </Action>
+                </Control>
+                <Control xsi:type="Button" id="GR.ApiOwners">
+                  <Label resid="Btn.ApiOwners" />
+                  <Supertip>
+                    <Title resid="Btn.ApiOwners" />
+                    <Description resid="Btn.ApiOwners.Tip" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Admin.16" />
+                    <bt:Image size="32" resid="Admin.32" />
+                    <bt:Image size="80" resid="Admin.80" />
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>GordonsRegister.Admin</TaskpaneId>
+                    <SourceLocation resid="Taskpane.ApiOwners.Url" />
+                  </Action>
+                </Control>
+                <Control xsi:type="Button" id="GR.ApiHoldings">
+                  <Label resid="Btn.ApiHoldings" />
+                  <Supertip>
+                    <Title resid="Btn.ApiHoldings" />
+                    <Description resid="Btn.ApiHoldings.Tip" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Admin.16" />
+                    <bt:Image size="32" resid="Admin.32" />
+                    <bt:Image size="80" resid="Admin.80" />
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>GordonsRegister.Admin</TaskpaneId>
+                    <SourceLocation resid="Taskpane.ApiHoldings.Url" />
+                  </Action>
+                </Control>
+                <Control xsi:type="Button" id="GR.ApiDocument">
+                  <Label resid="Btn.ApiDocument" />
+                  <Supertip>
+                    <Title resid="Btn.ApiDocument" />
+                    <Description resid="Btn.ApiDocument.Tip" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Admin.16" />
+                    <bt:Image size="32" resid="Admin.32" />
+                    <bt:Image size="80" resid="Admin.80" />
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>GordonsRegister.Admin</TaskpaneId>
+                    <SourceLocation resid="Taskpane.ApiDocument.Url" />
+                  </Action>
+                </Control>
+              </Group>
+              <Group id="GR.AdminGroup">
+                <Label resid="AdminGroup.Label" />
+                <Icon>
+                  <bt:Image size="16" resid="Admin.16" />
+                  <bt:Image size="32" resid="Admin.32" />
+                  <bt:Image size="80" resid="Admin.80" />
+                </Icon>
+                <Control xsi:type="Button" id="GR.Dev">
+                  <Label resid="Btn.Dev" />
+                  <Supertip>
+                    <Title resid="Btn.Dev" />
+                    <Description resid="Btn.Dev.Tip" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Admin.16" />
+                    <bt:Image size="32" resid="Admin.32" />
+                    <bt:Image size="80" resid="Admin.80" />
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>GordonsRegister.Admin</TaskpaneId>
+                    <SourceLocation resid="Taskpane.Url" />
+                  </Action>
+                </Control>
+              </Group>
+              <Label resid="Tab.Label" />
+            </CustomTab>
+          </ExtensionPoint>
+        </DesktopFormFactor>
+      </Host>
+    </Hosts>
+
+    <Resources>
+      <bt:Images>
+        <bt:Image id="Icon.16" DefaultValue="https://localhost:3000/assets/icon-16.png" />
+        <bt:Image id="Icon.32" DefaultValue="https://localhost:3000/assets/icon-32.png" />
+        <bt:Image id="Icon.80" DefaultValue="https://localhost:3000/assets/icon-80.png" />
+        <bt:Image id="Bilanz.16" DefaultValue="https://localhost:3000/assets/bilanz-16.png" />
+        <bt:Image id="Bilanz.32" DefaultValue="https://localhost:3000/assets/bilanz-32.png" />
+        <bt:Image id="Bilanz.80" DefaultValue="https://localhost:3000/assets/bilanz-80.png" />
+        <bt:Image id="GuV.16" DefaultValue="https://localhost:3000/assets/guv-16.png" />
+        <bt:Image id="GuV.32" DefaultValue="https://localhost:3000/assets/guv-32.png" />
+        <bt:Image id="GuV.80" DefaultValue="https://localhost:3000/assets/guv-80.png" />
+        <bt:Image id="Kennzahlen.16" DefaultValue="https://localhost:3000/assets/kennzahlen-16.png" />
+        <bt:Image id="Kennzahlen.32" DefaultValue="https://localhost:3000/assets/kennzahlen-32.png" />
+        <bt:Image id="Kennzahlen.80" DefaultValue="https://localhost:3000/assets/kennzahlen-80.png" />
+        <bt:Image id="Stammdaten.16" DefaultValue="https://localhost:3000/assets/stammdaten-16.png" />
+        <bt:Image id="Stammdaten.32" DefaultValue="https://localhost:3000/assets/stammdaten-32.png" />
+        <bt:Image id="Stammdaten.80" DefaultValue="https://localhost:3000/assets/stammdaten-80.png" />
+        <bt:Image id="Alles.16" DefaultValue="https://localhost:3000/assets/alles-16.png" />
+        <bt:Image id="Alles.32" DefaultValue="https://localhost:3000/assets/alles-32.png" />
+        <bt:Image id="Alles.80" DefaultValue="https://localhost:3000/assets/alles-80.png" />
+        <bt:Image id="Admin.16" DefaultValue="https://localhost:3000/assets/admin-16.png" />
+        <bt:Image id="Admin.32" DefaultValue="https://localhost:3000/assets/admin-32.png" />
+        <bt:Image id="Admin.80" DefaultValue="https://localhost:3000/assets/admin-80.png" />
+      </bt:Images>
+      <bt:Urls>
+        <bt:Url id="Commands.Url" DefaultValue="https://localhost:3000/commands.html" />
+        <bt:Url id="Taskpane.Url" DefaultValue="https://localhost:3000/taskpane.html" />
+        <bt:Url id="Taskpane.ApiSearch.Url" DefaultValue="https://localhost:3000/taskpane.html?endpoint=search-company" />
+        <bt:Url id="Taskpane.ApiUbo.Url" DefaultValue="https://localhost:3000/taskpane.html?endpoint=company-ubo" />
+        <bt:Url id="Taskpane.ApiOwners.Url" DefaultValue="https://localhost:3000/taskpane.html?endpoint=company-owners" />
+        <bt:Url id="Taskpane.ApiHoldings.Url" DefaultValue="https://localhost:3000/taskpane.html?endpoint=company-holdings" />
+        <bt:Url id="Taskpane.ApiDocument.Url" DefaultValue="https://localhost:3000/taskpane.html?endpoint=document-realtime" />
+        <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="https://openregister.de" />
+      </bt:Urls>
+      <bt:ShortStrings>
+        <bt:String id="Tab.Label" DefaultValue="Gordon's Register" />
+        <bt:String id="Group.Label" DefaultValue="Daten laden" />
+        <bt:String id="Btn.Bilanz" DefaultValue="Bilanz" />
+        <bt:String id="Btn.GuV" DefaultValue="GuV" />
+        <bt:String id="Btn.Kennzahlen" DefaultValue="Kennzahlen" />
+        <bt:String id="Btn.Stammdaten" DefaultValue="Stammdaten" />
+        <bt:String id="Btn.Alles" DefaultValue="Alles laden" />
+        <bt:String id="ApiGroup.Label" DefaultValue="API Test" />
+        <bt:String id="Btn.ApiSearch" DefaultValue="API: Firma suchen" />
+        <bt:String id="Btn.ApiUbo" DefaultValue="API: UBO" />
+        <bt:String id="Btn.ApiOwners" DefaultValue="API: Owners" />
+        <bt:String id="Btn.ApiHoldings" DefaultValue="API: Holdings" />
+        <bt:String id="Btn.ApiDocument" DefaultValue="API: Dokument" />
+        <bt:String id="AdminGroup.Label" DefaultValue="Admin" />
+        <bt:String id="Btn.Dev" DefaultValue="Dev / Admin" />
+        <bt:String id="GetStarted.Title" DefaultValue="Gordon's Register" />
+      </bt:ShortStrings>
+      <bt:LongStrings>
+        <bt:String id="Btn.Bilanz.Tip" DefaultValue="Bilanz (Aktiva + Passiva) für die markierten Firmen in das Mandanten-Blatt laden." />
+        <bt:String id="Btn.GuV.Tip" DefaultValue="Gewinn- und Verlustrechnung für die markierten Firmen laden." />
+        <bt:String id="Btn.Kennzahlen.Tip" DefaultValue="Kennzahlen für die markierten Firmen laden." />
+        <bt:String id="Btn.Stammdaten.Tip" DefaultValue="Stammdaten (Rechtsform, Adresse, Kapital, Vertretung) laden." />
+        <bt:String id="Btn.Alles.Tip" DefaultValue="Alle verfügbaren Daten (Bilanz, GuV, Kennzahlen, Stammdaten) laden." />
+        <bt:String id="Btn.ApiSearch.Tip" DefaultValue="Öffne das Dev-Panel für Firmensuche über die API." />
+        <bt:String id="Btn.ApiUbo.Tip" DefaultValue="Öffne das Dev-Panel für UBO (Wirtschaftlich Berechtigte) Abfrage – 25 Credits pro Abfrage." />
+        <bt:String id="Btn.ApiOwners.Tip" DefaultValue="Öffne das Dev-Panel für Owners-Abfrage – 10 Credits pro Abfrage." />
+        <bt:String id="Btn.ApiHoldings.Tip" DefaultValue="Öffne das Dev-Panel für Holdings-Abfrage – 10 Credits pro Abfrage." />
+        <bt:String id="Btn.ApiDocument.Tip" DefaultValue="Öffne das Dev-Panel für offizielle Handelsregisterdokumente – 10 Credits pro Abfrage." />
+        <bt:String id="Btn.Dev.Tip" DefaultValue="Admin-/Entwickler-Panel: Verbindung testen, Firmensuche prüfen, Konfiguration ändern." />
+        <bt:String id="GetStarted.Description" DefaultValue="Markiere Zellen mit Firmennamen und nutze die Buttons im Reiter 'Gordon's Register', um Bilanz, GuV, Kennzahlen und Stammdaten zu importieren." />
+      </bt:LongStrings>
+    </Resources>
+  </VersionOverrides>
+</OfficeApp>
