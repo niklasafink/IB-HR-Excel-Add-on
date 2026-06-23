@@ -1,4 +1,10 @@
+# Node
 node_modules/
+
+# Build
 dist/
+
+# Environment (keep .env.example committed)
 .env
+.env.local
 *.log
