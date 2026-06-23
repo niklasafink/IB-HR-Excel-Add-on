@@ -16,8 +16,9 @@ const RATE_LIMIT_MAX = Number(process.env.RATE_LIMIT_MAX) || 300;
 const app = express();
 app.set("trust proxy", 1); // hinter Reverse-Proxy/Load-Balancer korrekte Client-IP
 
-// Sicherheits-Header (für eine reine JSON-API unkritisch).
-app.use(helmet());
+// Sicherheits-Header. CSP aus, da die Admin-Seite (/admin) ein Inline-Script
+// nutzt; alle übrigen helmet-Schutzheader (HSTS, noSniff, frameguard …) bleiben.
+app.use(helmet({ contentSecurityPolicy: false }));
 
 app.use(
   cors({
