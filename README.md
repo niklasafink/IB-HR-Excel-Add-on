@@ -1,6 +1,6 @@
-# Gordan v2
+# Gordon
 
-Excel Add-in als API-Cockpit fuer handelsregister.ai.
+Excel Add-in für Handelsregister- und Unternehmensdaten (handelsregister.ai).
 
 Die App besteht nur noch aus dem API-Teil: Im Ribbon gibt es je handelsregister.ai Feature einen Button. Jeder Button oeffnet das Taskpane mit dem passenden Feature vorausgewaehlt. Dort wird ein Unternehmen eingegeben oder aus der markierten Zelle uebernommen, der Request gesendet und die rohe JSON-Antwort angezeigt.
 

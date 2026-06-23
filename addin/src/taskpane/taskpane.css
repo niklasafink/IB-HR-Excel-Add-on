@@ -285,6 +285,17 @@ button.secondary:hover,
   background: #f2f2f2;
 }
 
+details.proxy-block > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--excel-dark);
+  list-style: revert;
+}
+
+details.proxy-block > summary::-webkit-details-marker {
+  display: revert;
+}
+
 .year-quick {
   display: flex;
   flex-wrap: wrap;

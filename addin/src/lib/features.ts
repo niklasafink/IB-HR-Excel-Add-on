@@ -11,7 +11,7 @@ export interface ApiFeature {
 export const API_FEATURES: ApiFeature[] = [
   {
     key: "financial_kpi",
-    label: "financial_kpi",
+    label: "Finanzkennzahlen",
     shortLabel: "KPI",
     group: "Finance",
     credits: "1",
@@ -19,7 +19,7 @@ export const API_FEATURES: ApiFeature[] = [
   },
   {
     key: "balance_sheet_accounts",
-    label: "balance_sheet_accounts",
+    label: "Bilanz",
     shortLabel: "Balance",
     group: "Finance",
     credits: "3",
@@ -27,7 +27,7 @@ export const API_FEATURES: ApiFeature[] = [
   },
   {
     key: "profit_and_loss_account",
-    label: "profit_and_loss_account",
+    label: "Gewinn- und Verlustrechnung (GuV)",
     shortLabel: "P&L",
     group: "Finance",
     credits: "3",
@@ -35,7 +35,7 @@ export const API_FEATURES: ApiFeature[] = [
   },
   {
     key: "annual_financial_statements",
-    label: "annual_financial_statements",
+    label: "Jahresabschluss (Markdown)",
     shortLabel: "AFS MD",
     group: "Finance",
     credits: "5",
@@ -43,7 +43,7 @@ export const API_FEATURES: ApiFeature[] = [
   },
   {
     key: "annual_financial_statements__html",
-    label: "annual_financial_statements__html",
+    label: "Jahresabschluss (HTML)",
     shortLabel: "AFS HTML",
     group: "Finance",
     credits: "5",
@@ -51,7 +51,7 @@ export const API_FEATURES: ApiFeature[] = [
   },
   {
     key: "related_persons",
-    label: "related_persons",
+    label: "Geschäftsführung & Organe",
     shortLabel: "People",
     group: "People",
     credits: "2",
@@ -59,7 +59,7 @@ export const API_FEATURES: ApiFeature[] = [
   },
   {
     key: "publications",
-    label: "publications",
+    label: "Bekanntmachungen",
     shortLabel: "Publ.",
     group: "Publications",
     credits: "1",
@@ -67,7 +67,7 @@ export const API_FEATURES: ApiFeature[] = [
   },
   {
     key: "news",
-    label: "news",
+    label: "Nachrichten",
     shortLabel: "News",
     group: "Publications",
     credits: "10",
@@ -75,7 +75,7 @@ export const API_FEATURES: ApiFeature[] = [
   },
   {
     key: "insolvency_publications",
-    label: "insolvency_publications",
+    label: "Insolvenzbekanntmachungen",
     shortLabel: "Insolv.",
     group: "Publications",
     credits: "1",
@@ -83,7 +83,7 @@ export const API_FEATURES: ApiFeature[] = [
   },
   {
     key: "shareholders",
-    label: "shareholders",
+    label: "Gesellschafter",
     shortLabel: "Shareholders",
     group: "Ownership",
     credits: "5",
@@ -92,7 +92,7 @@ export const API_FEATURES: ApiFeature[] = [
   },
   {
     key: "ubos",
-    label: "ubos",
+    label: "Wirtschaftlich Berechtigte (UBOs)",
     shortLabel: "UBOs",
     group: "Ownership",
     credits: "10",
@@ -101,7 +101,7 @@ export const API_FEATURES: ApiFeature[] = [
   },
   {
     key: "shareholdings",
-    label: "shareholdings",
+    label: "Beteiligungen",
     shortLabel: "Holdings",
     group: "Ownership",
     credits: "5",
@@ -110,7 +110,7 @@ export const API_FEATURES: ApiFeature[] = [
   },
   {
     key: "website_content",
-    label: "website_content",
+    label: "Website-Inhalt (KI)",
     shortLabel: "Website",
     group: "AI",
     credits: "0",

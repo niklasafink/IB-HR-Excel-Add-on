@@ -8,10 +8,10 @@
 
   <Id>c6890c26-5c0b-4f0e-9a3d-1f0b9a2e7c11</Id>
   <Version>2.0.0.0</Version>
-  <ProviderName>Gordan v2</ProviderName>
+  <ProviderName>Gordon</ProviderName>
   <DefaultLocale>de-DE</DefaultLocale>
-  <DisplayName DefaultValue="Gordan v2" />
-  <Description DefaultValue="API-Cockpit für handelsregister.ai Features in Excel." />
+  <DisplayName DefaultValue="Gordon" />
+  <Description DefaultValue="Gordon – Handelsregister- und Unternehmensdaten direkt in Excel." />
   <IconUrl DefaultValue="https://localhost:3000/assets/icon-32.png" />
   <HighResolutionIconUrl DefaultValue="https://localhost:3000/assets/icon-80.png" />
   <SupportUrl DefaultValue="https://handelsregister.ai" />
@@ -74,18 +74,6 @@
                   <Supertip><Title resid="Btn.F3" /><Description resid="Tip.F3" /></Supertip>
                   <Icon><bt:Image size="16" resid="F3.16" /><bt:Image size="32" resid="F3.32" /><bt:Image size="80" resid="F3.80" /></Icon>
                   <Action xsi:type="ShowTaskpane"><TaskpaneId>GordanV2.Api</TaskpaneId><SourceLocation resid="Url.F3" /></Action>
-                </Control>
-                <Control xsi:type="Button" id="GV2.F4">
-                  <Label resid="Btn.F4" />
-                  <Supertip><Title resid="Btn.F4" /><Description resid="Tip.F4" /></Supertip>
-                  <Icon><bt:Image size="16" resid="F4.16" /><bt:Image size="32" resid="F4.32" /><bt:Image size="80" resid="F4.80" /></Icon>
-                  <Action xsi:type="ShowTaskpane"><TaskpaneId>GordanV2.Api</TaskpaneId><SourceLocation resid="Url.F4" /></Action>
-                </Control>
-                <Control xsi:type="Button" id="GV2.F5">
-                  <Label resid="Btn.F5" />
-                  <Supertip><Title resid="Btn.F5" /><Description resid="Tip.F5" /></Supertip>
-                  <Icon><bt:Image size="16" resid="F5.16" /><bt:Image size="32" resid="F5.32" /><bt:Image size="80" resid="F5.80" /></Icon>
-                  <Action xsi:type="ShowTaskpane"><TaskpaneId>GordanV2.Api</TaskpaneId><SourceLocation resid="Url.F5" /></Action>
                 </Control>
               </Group>
 
@@ -177,12 +165,6 @@
         <bt:Image id="F3.16" DefaultValue="https://localhost:3000/assets/feature-profit_and_loss_account-16.png" />
         <bt:Image id="F3.32" DefaultValue="https://localhost:3000/assets/feature-profit_and_loss_account-32.png" />
         <bt:Image id="F3.80" DefaultValue="https://localhost:3000/assets/feature-profit_and_loss_account-80.png" />
-        <bt:Image id="F4.16" DefaultValue="https://localhost:3000/assets/feature-annual_financial_statements-16.png" />
-        <bt:Image id="F4.32" DefaultValue="https://localhost:3000/assets/feature-annual_financial_statements-32.png" />
-        <bt:Image id="F4.80" DefaultValue="https://localhost:3000/assets/feature-annual_financial_statements-80.png" />
-        <bt:Image id="F5.16" DefaultValue="https://localhost:3000/assets/feature-annual_financial_statements__html-16.png" />
-        <bt:Image id="F5.32" DefaultValue="https://localhost:3000/assets/feature-annual_financial_statements__html-32.png" />
-        <bt:Image id="F5.80" DefaultValue="https://localhost:3000/assets/feature-annual_financial_statements__html-80.png" />
         <bt:Image id="F6.16" DefaultValue="https://localhost:3000/assets/feature-related_persons-16.png" />
         <bt:Image id="F6.32" DefaultValue="https://localhost:3000/assets/feature-related_persons-32.png" />
         <bt:Image id="F6.80" DefaultValue="https://localhost:3000/assets/feature-related_persons-80.png" />
@@ -214,8 +196,6 @@
         <bt:Url id="Url.F1" DefaultValue="https://localhost:3000/taskpane.html?feature=financial_kpi" />
         <bt:Url id="Url.F2" DefaultValue="https://localhost:3000/taskpane.html?feature=balance_sheet_accounts" />
         <bt:Url id="Url.F3" DefaultValue="https://localhost:3000/taskpane.html?feature=profit_and_loss_account" />
-        <bt:Url id="Url.F4" DefaultValue="https://localhost:3000/taskpane.html?feature=annual_financial_statements" />
-        <bt:Url id="Url.F5" DefaultValue="https://localhost:3000/taskpane.html?feature=annual_financial_statements__html" />
         <bt:Url id="Url.F6" DefaultValue="https://localhost:3000/taskpane.html?feature=related_persons" />
         <bt:Url id="Url.F7" DefaultValue="https://localhost:3000/taskpane.html?feature=publications" />
         <bt:Url id="Url.F8" DefaultValue="https://localhost:3000/taskpane.html?feature=news" />
@@ -227,7 +207,7 @@
         <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="https://handelsregister.ai" />
       </bt:Urls>
       <bt:ShortStrings>
-        <bt:String id="Tab.Label" DefaultValue="Gordan v2" />
+        <bt:String id="Tab.Label" DefaultValue="Gordon" />
         <bt:String id="Group.Finance" DefaultValue="Financials" />
         <bt:String id="Group.People" DefaultValue="People" />
         <bt:String id="Group.Publications" DefaultValue="Publications" />
@@ -236,8 +216,6 @@
         <bt:String id="Btn.F1" DefaultValue="KPI" />
         <bt:String id="Btn.F2" DefaultValue="Balance" />
         <bt:String id="Btn.F3" DefaultValue="P&amp;L" />
-        <bt:String id="Btn.F4" DefaultValue="AFS MD" />
-        <bt:String id="Btn.F5" DefaultValue="AFS HTML" />
         <bt:String id="Btn.F6" DefaultValue="People" />
         <bt:String id="Btn.F7" DefaultValue="Publ." />
         <bt:String id="Btn.F8" DefaultValue="News" />
@@ -246,14 +224,12 @@
         <bt:String id="Btn.F11" DefaultValue="UBOs" />
         <bt:String id="Btn.F12" DefaultValue="Stakes" />
         <bt:String id="Btn.F13" DefaultValue="Website" />
-        <bt:String id="GetStarted.Title" DefaultValue="Gordan v2" />
+        <bt:String id="GetStarted.Title" DefaultValue="Gordon" />
       </bt:ShortStrings>
       <bt:LongStrings>
         <bt:String id="Tip.F1" DefaultValue="financial_kpi · 1 Credit — jährliche Finanzkennzahlen abrufen." />
         <bt:String id="Tip.F2" DefaultValue="balance_sheet_accounts · 3 Credits — hierarchische Bilanzdaten abrufen." />
         <bt:String id="Tip.F3" DefaultValue="profit_and_loss_account · 3 Credits — GuV-Aufstellungen abrufen." />
-        <bt:String id="Tip.F4" DefaultValue="annual_financial_statements · 5 Credits — Jahresberichte als Markdown abrufen." />
-        <bt:String id="Tip.F5" DefaultValue="annual_financial_statements__html · 5 Credits — Jahresberichte als HTML abrufen." />
         <bt:String id="Tip.F6" DefaultValue="related_persons · 2 Credits — Geschäftsführer, Vorstände und Rollen abrufen." />
         <bt:String id="Tip.F7" DefaultValue="publications · 1 Credit — Handelsregisterveröffentlichungen abrufen." />
         <bt:String id="Tip.F8" DefaultValue="news · 10 Credits — Nachrichtenartikel abrufen." />

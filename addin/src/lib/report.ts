@@ -1,4 +1,4 @@
-/* global Excel, fetch, Response, localStorage */
+/* global Excel, fetch, Response, localStorage, AbortController, setTimeout, clearTimeout */
 
 import { featureByKey } from "./features";
 import { buildExcelModel, type ExcelCell, type ExcelModel, type ExcelTable } from "./excelModel";
@@ -6,15 +6,14 @@ import { buildExcelModel, type ExcelCell, type ExcelModel, type ExcelTable } fro
 declare const process: { env: { PROXY_BASE_URL?: string } };
 
 const DEFAULT_PROXY_BASE_URL = process.env.PROXY_BASE_URL || "https://localhost:3001/api";
-const PROXY_KEY = "gordanV2.proxyUrl";
+const PROXY_KEY = "gordon.proxyUrl";
+const USER_TOKEN_KEY = "gordon.userToken";
 
 /** Features mit einer Zeit-/Jahres-Dimension – nur dort ist der Jahr-Filter sinnvoll. */
 export const YEAR_FEATURES = new Set<string>([
   "financial_kpi",
   "balance_sheet_accounts",
   "profit_and_loss_account",
-  "annual_financial_statements",
-  "annual_financial_statements__html",
   "publications",
   "news",
   "insolvency_publications",
@@ -135,12 +134,31 @@ async function loadSheetNames(): Promise<Set<string>> {
 
 async function fetchFeature(query: string, featureKey: string): Promise<unknown> {
   const url = `${proxyBaseUrl()}/organization?q=${encodeURIComponent(query)}&feature=${encodeURIComponent(featureKey)}`;
-  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  const res = await fetchWithTimeout(url);
   const body = await safeJson(res);
   if (!res.ok) {
     throw new Error(errorMessage(body) || `Proxy-Fehler (${res.status})`);
   }
   return body;
+}
+
+/** fetch mit Timeout (Standard 30s) – verhindert endlos hängende Anfragen. */
+async function fetchWithTimeout(url: string, timeoutMs = 30000): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const headers: Record<string, string> = { Accept: "application/json" };
+  const token = userToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+  try {
+    return await fetch(url, { headers, signal: controller.signal });
+  } catch (err) {
+    if ((err as Error).name === "AbortError") {
+      throw new Error(`Zeitüberschreitung nach ${Math.round(timeoutMs / 1000)}s – Server nicht erreichbar?`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /** Filtert das Feature-Array client-seitig auf den Jahresbereich [yearFrom, yearTo]. */
@@ -288,11 +306,24 @@ function writeTables(sheet: Excel.Worksheet, tables: ExcelTable[], startRow: num
     if (table.rows.length) {
       const dataRange = sheet.getRangeByIndexes(row, 0, table.rows.length, width);
       dataRange.values = table.rows.map((cells) => padRow(cells, width));
+      applyColumnFormats(sheet, table, row, width);
       row += table.rows.length;
     }
     row += 2;
   }
   return row;
+}
+
+/** Wendet die optionalen Spalten-Zahlenformate (table.formats) auf die Datenzeilen an. */
+function applyColumnFormats(sheet: Excel.Worksheet, table: ExcelTable, dataRow: number, width: number): void {
+  const formats = table.formats;
+  if (!formats) return;
+  for (let col = 0; col < width; col++) {
+    const fmt = formats[col];
+    if (!fmt) continue;
+    const colRange = sheet.getRangeByIndexes(dataRow, col, table.rows.length, 1);
+    colRange.numberFormat = table.rows.map(() => [fmt]);
+  }
 }
 
 function autofit(sheet: Excel.Worksheet): void {
@@ -319,6 +350,26 @@ export function setProxyBaseUrl(value: string): string {
     /* ignore */
   }
   return normalized;
+}
+
+/** Persönlicher Zugangs-Token (vom Administrator vergeben). */
+export function userToken(): string {
+  try {
+    return (localStorage.getItem(USER_TOKEN_KEY) || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+export function setUserToken(value: string): string {
+  const trimmed = value.trim();
+  try {
+    if (trimmed) localStorage.setItem(USER_TOKEN_KEY, trimmed);
+    else localStorage.removeItem(USER_TOKEN_KEY);
+  } catch {
+    /* ignore */
+  }
+  return trimmed;
 }
 
 export async function checkHealth(): Promise<boolean> {

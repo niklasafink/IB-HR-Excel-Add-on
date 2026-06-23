@@ -8,6 +8,7 @@
     "start": "webpack serve --mode development",
     "build": "webpack --mode production",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "validate": "office-addin-manifest validate manifest.xml",
     "sideload": "office-addin-debugging start manifest.xml",
     "stop": "office-addin-debugging stop manifest.xml"
@@ -24,6 +25,7 @@
     "office-addin-manifest": "^1.13.0",
     "ts-loader": "^9.5.1",
     "typescript": "^5.5.0",
+    "vitest": "^4.1.9",
     "webpack": "^5.92.0",
     "webpack-cli": "^5.1.4",
     "webpack-dev-server": "^5.0.4"

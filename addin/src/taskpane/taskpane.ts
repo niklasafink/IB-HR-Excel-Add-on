@@ -6,6 +6,8 @@ import {
   readSelectedCompanies,
   proxyBaseUrl,
   setProxyBaseUrl,
+  userToken,
+  setUserToken,
   checkHealth,
   YEAR_FEATURES,
   type ReportOptions,
@@ -28,6 +30,7 @@ Office.onReady((info) => {
   applyFeatureFromUrl();
   renderYearQuick();
   byId<HTMLInputElement>("proxyUrl").value = proxyBaseUrl();
+  byId<HTMLInputElement>("userToken").value = userToken();
   bindEvents();
   void refreshCompanies();
   void testConnection(false);
@@ -59,6 +62,9 @@ function bindEvents(): void {
     byId<HTMLInputElement>("proxyUrl").value = normalized;
     void testConnection(false);
   });
+  byId<HTMLInputElement>("userToken").addEventListener("change", () => {
+    setUserToken(byId<HTMLInputElement>("userToken").value);
+  });
 }
 
 function renderFeatureSelect(): void {
@@ -67,7 +73,10 @@ function renderFeatureSelect(): void {
   select.innerHTML = groups
     .map((group) => {
       const options = API_FEATURES.filter((feature) => feature.group === group)
-        .map((feature) => `<option value="${feature.key}">${escapeHtml(feature.label)}</option>`)
+        .map((feature) => {
+          const badge = feature.beta ? " (Beta)" : feature.group === "AI" ? " (KI)" : "";
+          return `<option value="${feature.key}">${escapeHtml(feature.label + badge)}</option>`;
+        })
         .join("");
       return `<optgroup label="${escapeHtml(group)}">${options}</optgroup>`;
     })

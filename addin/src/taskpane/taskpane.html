@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Gordan v2</title>
+    <title>Gordon</title>
     <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
     <link rel="stylesheet" href="taskpane.css" />
   </head>
@@ -12,7 +12,7 @@
       <header class="pane-head">
         <div>
           <p class="eyebrow">handelsregister.ai</p>
-          <h1>Gordan v2</h1>
+          <h1>Gordon</h1>
         </div>
         <span id="healthDot" class="health-dot" title="Proxy-Status"></span>
       </header>
@@ -64,13 +64,17 @@
         <div id="status" class="status"></div>
       </section>
 
-      <section class="block proxy-block">
-        <label for="proxyUrl">Proxy</label>
+      <details class="block proxy-block">
+        <summary>Einstellungen</summary>
+        <label for="proxyUrl">Proxy-Adresse (Server)</label>
         <div class="field-inline">
-          <input id="proxyUrl" type="text" placeholder="https://localhost:3001/api" />
+          <input id="proxyUrl" type="text" placeholder="https://dein-proxy.example.com/api" />
           <button id="testConn" class="secondary" type="button">Test</button>
         </div>
-      </section>
+        <label for="userToken">Zugangs-Token (persönlich)</label>
+        <input id="userToken" type="password" placeholder="vom Administrator erhalten" />
+        <p class="muted-line">Nur bei der Ersteinrichtung nötig.</p>
+      </details>
     </main>
   </body>
 </html>

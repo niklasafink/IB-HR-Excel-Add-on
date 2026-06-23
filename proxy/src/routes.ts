@@ -1,8 +1,114 @@
-import { Router, type Request, type Response } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
 import { proxyGet, UpstreamError } from "./handelsregister.js";
 import { getUsageSummary, resetUsage } from "./usage.js";
+import {
+  authEnabled,
+  isAdminToken,
+  checkAccess,
+  userContext,
+  listUsers,
+  createUser,
+  updateUser,
+  resetUser,
+  rotateToken,
+  deleteUser,
+} from "./users.js";
 
 export const router = Router();
+export const adminRouter = Router();
+
+/** Liest den Bearer-/x-user-token-Header. */
+function bearerToken(req: Request): string | undefined {
+  const auth = req.header("authorization");
+  if (auth && auth.toLowerCase().startsWith("bearer ")) return auth.slice(7).trim();
+  return req.header("x-user-token")?.trim() || undefined;
+}
+
+/**
+ * Middleware für Credit-verbrauchende Routen: erzwingt (bei gesetztem
+ * ADMIN_TOKEN) einen gültigen Nutzer-Token, prüft Sperre/Limit und führt die
+ * Anfrage im Nutzer-Kontext aus (für die Verbrauchszuordnung). Im offenen Modus
+ * (kein ADMIN_TOKEN) passiert nichts.
+ */
+export function userLimit(req: Request, res: Response, next: NextFunction): void {
+  if (!authEnabled() || req.path === "/health") {
+    next();
+    return;
+  }
+  const { user, check } = checkAccess(bearerToken(req));
+  if (!check.ok || !user) {
+    res.status(check.status ?? 401).json({ error: check.error ?? "Zugriff verweigert." });
+    return;
+  }
+  userContext.run({ userId: user.id }, () => next());
+}
+
+// ---- Admin-API (durch ADMIN_TOKEN geschützt) ---------------------------
+
+adminRouter.use((req: Request, res: Response, next: NextFunction) => {
+  if (!authEnabled()) {
+    res.status(503).json({ error: "Admin-Funktionen sind nicht aktiviert (ADMIN_TOKEN fehlt)." });
+    return;
+  }
+  const token = req.header("x-admin-token") || bearerToken(req);
+  if (!isAdminToken(token)) {
+    res.status(401).json({ error: "Ungültiger Admin-Token." });
+    return;
+  }
+  next();
+});
+
+adminRouter.get("/users", (_req, res) => res.json({ users: listUsers() }));
+
+adminRouter.post("/users", (req, res) => {
+  const body = asRecord(req.body);
+  const name = text(body.name) || "Unbenannt";
+  const creditLimit = Number(body.creditLimit) || 0;
+  res.status(201).json(createUser(name, creditLimit));
+});
+
+adminRouter.patch("/users/:id", (req, res) => {
+  const body = asRecord(req.body);
+  const updated = updateUser(req.params.id, {
+    name: typeof body.name === "string" ? body.name : undefined,
+    creditLimit: body.creditLimit !== undefined ? Number(body.creditLimit) : undefined,
+    unlimited: typeof body.unlimited === "boolean" ? body.unlimited : undefined,
+    disabled: typeof body.disabled === "boolean" ? body.disabled : undefined,
+  });
+  if (!updated) {
+    res.status(404).json({ error: "Nutzer nicht gefunden." });
+    return;
+  }
+  res.json({ user: updated });
+});
+
+adminRouter.post("/users/:id/reset", (req, res) => {
+  const updated = resetUser(req.params.id);
+  if (!updated) {
+    res.status(404).json({ error: "Nutzer nicht gefunden." });
+    return;
+  }
+  res.json({ user: updated });
+});
+
+adminRouter.post("/users/:id/rotate-token", (req, res) => {
+  const result = rotateToken(req.params.id);
+  if (!result) {
+    res.status(404).json({ error: "Nutzer nicht gefunden." });
+    return;
+  }
+  res.json(result);
+});
+
+adminRouter.delete("/users/:id", (req, res) => {
+  if (!deleteUser(req.params.id)) {
+    res.status(404).json({ error: "Nutzer nicht gefunden." });
+    return;
+  }
+  res.json({ ok: true });
+});
+
+adminRouter.get("/usage", (_req, res) => res.json(getUsageSummary()));
 
 function handleError(res: Response, err: unknown): void {
   if (err instanceof UpstreamError) {
@@ -262,6 +368,21 @@ function filtersFromLegacyBody(body: unknown): JsonRecord {
 }
 
 /** Wrapper: prüft einen Pflicht-Query-Parameter und ruft danach den Handler. */
+const MAX_QUERY_LEN = 200;
+
+/** Validiert einen Eingabewert (vorhanden + nicht zu lang). Antwortet selbst bei Fehler. */
+function invalidInput(res: Response, name: string, value: string): boolean {
+  if (!value) {
+    res.status(400).json({ error: `Parameter '${name}' fehlt.` });
+    return true;
+  }
+  if (value.length > MAX_QUERY_LEN) {
+    res.status(400).json({ error: `Parameter '${name}' ist zu lang (max. ${MAX_QUERY_LEN} Zeichen).` });
+    return true;
+  }
+  return false;
+}
+
 function requireParam(
   req: Request,
   res: Response,
@@ -269,10 +390,7 @@ function requireParam(
   run: (value: string) => Promise<unknown>
 ): void {
   const value = q(req, name);
-  if (!value) {
-    res.status(400).json({ error: `Parameter '${name}' fehlt.` });
-    return;
-  }
+  if (invalidInput(res, name, value)) return;
   run(value)
     .then((data) => res.json(data))
     .catch((err) => handleError(res, err));
@@ -284,10 +402,7 @@ function requireValue(
   value: string,
   run: (value: string) => Promise<unknown>
 ): void {
-  if (!value) {
-    res.status(400).json({ error: `Parameter '${name}' fehlt.` });
-    return;
-  }
+  if (invalidInput(res, name, value)) return;
   run(value)
     .then((data) => res.json(data))
     .catch((err) => handleError(res, err));
@@ -360,8 +475,36 @@ router.get("/organization", (req, res) => {
   const features = (Array.isArray(rawFeatures) ? rawFeatures : rawFeatures ? [rawFeatures] : [])
     .map((feature) => String(feature).trim())
     .filter(Boolean);
-  requireValue(res, "q", query, (value) => proxyGet(fetchOrganizationPath(value, features)));
+  requireValue(res, "q", query, (value) => fetchOrganizationResolved(value, features));
 });
+
+/**
+ * Holt die Organisation. Schlägt die direkte Auflösung fehl (404, z. B. weil
+ * der Name ungenau ist wie „OroraTech" statt „OroraTech GmbH"), wird einmalig
+ * über die Such-API der beste Treffer ermittelt und erneut versucht.
+ */
+async function fetchOrganizationResolved(query: string, features: string[]): Promise<unknown> {
+  try {
+    return await proxyGet(fetchOrganizationPath(query, features));
+  } catch (err) {
+    if (!(err instanceof UpstreamError) || err.status !== 404) throw err;
+    const resolved = await resolveBestName(query);
+    if (!resolved || resolved.toLowerCase() === query.toLowerCase()) throw err;
+    return proxyGet(fetchOrganizationPath(resolved, features));
+  }
+}
+
+/** Ermittelt über die Such-API den Namen des besten Treffers (oder null). */
+async function resolveBestName(query: string): Promise<string | null> {
+  try {
+    const data = await proxyGet(searchOrganizationsPath(query, 1));
+    const first = asArray(asRecord(data).results)[0];
+    const name = text(asRecord(first).name);
+    return name || null;
+  } catch {
+    return null;
+  }
+}
 
 // GET /api/company?company_id=<ID>[&q=<NAME>]
 router.get("/company", (req, res) => {

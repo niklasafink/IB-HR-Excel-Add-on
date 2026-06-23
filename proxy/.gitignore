@@ -8,3 +8,7 @@ dist/
 .env
 .env.local
 *.log
+
+# Laufzeit-/Nutzerdaten (pro Instanz, nie committen)
+usage.json
+users.json

@@ -6,6 +6,26 @@ export interface ExcelTable {
   title: string;
   headers: string[];
   rows: ExcelCell[][];
+  /** Optionales Excel-Zahlenformat je Spalte (null = unformatiert). */
+  formats?: (string | null)[];
+}
+
+/** Standard-Zahlenformat: Tausendertrennung + 2 Nachkommastellen (locale-abhängig). */
+const NUM_FORMAT = "#,##0.00";
+
+/** Leitet ein passendes Zahlenformat aus dem Spaltennamen ab (oder null). */
+function formatForHeader(header: string): string | null {
+  const h = header.toLowerCase();
+  if (/percent|prozent|quote/.test(h)) return "0.00";
+  if (/year|jahr|level|date|datum/.test(h)) return null;
+  if (
+    /amount|value|wert|revenue|umsatz|income|gewinn|capital|kapital|ebit|cash|equity|eigenkapital|liabilit|balance|bilanz|total|summe|contribution|einlage|expense|aufwand|betrag|asset|verm/.test(
+      h
+    )
+  ) {
+    return NUM_FORMAT;
+  }
+  return null;
 }
 
 export interface ExcelModel {
@@ -101,6 +121,7 @@ function arrayTable(title: string, rows: unknown[]): ExcelTable {
     title,
     headers,
     rows: flattened.map((row) => headers.map((header) => toCell(row[header]))),
+    formats: headers.map(formatForHeader),
   };
 }
 
@@ -232,6 +253,7 @@ function balanceSheetTables(records: unknown[]): ExcelTable[] {
       title: year ? `Bilanz ${year}` : "Bilanz",
       headers: ["Aktiva", "Wert", "", "Passiva", "Wert"],
       rows,
+      formats: [null, NUM_FORMAT, null, null, NUM_FORMAT],
     });
   }
 
@@ -291,7 +313,12 @@ function hierarchyTable(title: string, records: unknown[]): ExcelTable {
     }
   }
 
-  return { title, headers: ["year", "path", "level", "account", "value"], rows };
+  return {
+    title,
+    headers: ["year", "path", "level", "account", "value"],
+    rows,
+    formats: [null, null, null, null, NUM_FORMAT],
+  };
 }
 
 function walkHierarchy(nodeValue: unknown, year: string, parents: string[], out: ExcelCell[][]): void {
@@ -327,24 +354,42 @@ function documentTables(featureKey: string, value: unknown): ExcelTable[] {
     return { index, ...flat };
   });
 
-  const contentRows = documents.map((doc, index) => {
+  // Langer Inhalt (Markdown/HTML eines Jahresberichts) wird zeilenweise auf
+  // mehrere Zeilen verteilt statt in eine riesige Zelle gekippt – Excel-Zellen
+  // sind auf 32.767 Zeichen begrenzt und ein Riesen-Feld ist unlesbar.
+  const contentRows: ExcelCell[][] = [];
+  documents.forEach((doc, index) => {
     const record = asRecord(doc);
-    return {
-      index,
-      title: record.title ?? record.name ?? record.report_id ?? "",
-      content: findLongContent(record),
-    };
+    const title = String(record.title ?? record.name ?? record.report_id ?? `Dokument ${index + 1}`);
+    const lines = contentLines(findLongContent(record));
+    if (!lines.length) {
+      contentRows.push([title, "(kein Inhalt)"]);
+      return;
+    }
+    for (const line of lines) contentRows.push([title, line]);
   });
 
-  return [arrayTable(`${featureKey}_meta`, metaRows), arrayTable(`${featureKey}_content`, contentRows)];
+  return [
+    arrayTable(`${featureKey}_meta`, metaRows),
+    { title: `${featureKey}_content`, headers: ["Dokument", "Inhalt"], rows: contentRows },
+  ];
 }
 
 function websiteTables(value: unknown): ExcelTable[] {
   if (typeof value === "string") {
-    return [{ title: "website_content", headers: ["section", "content"], rows: [["content", value]] }];
+    return [{ title: "website_content", headers: ["Inhalt"], rows: contentLines(value).map((line) => [line]) }];
   }
   if (Array.isArray(value)) return [arrayTable("website_content", value)];
   return [genericTable("website_content", value)];
+}
+
+/** Zerlegt langen Text in nicht-leere Zeilen, mit Obergrenzen gegen Excel-Limits. */
+function contentLines(content: string): string[] {
+  const MAX_LINES = 5000;
+  const lines = content.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const capped = lines.slice(0, MAX_LINES).map((line) => (line.length > MAX_CELL ? line.slice(0, MAX_CELL) + " …" : line));
+  if (lines.length > MAX_LINES) capped.push(`… (${lines.length - MAX_LINES} weitere Zeilen abgeschnitten)`);
+  return capped;
 }
 
 function genericTable(title: string, value: unknown): ExcelTable {
@@ -436,10 +481,18 @@ function isPrimitive(value: unknown): boolean {
   return value === null || ["string", "number", "boolean", "undefined"].includes(typeof value);
 }
 
+/** Excel-Zellen fassen max. 32.767 Zeichen – konservativ darunter kappen. */
+const MAX_CELL = 32000;
+
+function clampText(text: string): string {
+  return text.length > MAX_CELL ? text.slice(0, MAX_CELL) + " …" : text;
+}
+
 function toCell(value: unknown): ExcelCell {
   if (value === undefined || value === null) return null;
-  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return value;
-  return JSON.stringify(value);
+  if (typeof value === "string") return clampText(value);
+  if (typeof value === "number" || typeof value === "boolean") return value;
+  return clampText(JSON.stringify(value));
 }
 
 function safeSheetName(name: string): string {

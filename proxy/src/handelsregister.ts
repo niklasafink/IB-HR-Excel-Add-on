@@ -16,7 +16,8 @@ const BASE_URL = (
 ).replace(/\/+$/, "");
 const API_KEY = process.env.HANDELSREGISTER_API_KEY || "";
 const CACHE_TTL_MS = (Number(process.env.CACHE_TTL_SECONDS) || 86400) * 1000;
-import { recordUsage } from "./usage.js";
+import { recordUsage, creditCost } from "./usage.js";
+import { chargeCurrentUser } from "./users.js";
 
 export class UpstreamError extends Error {
   status: number;
@@ -100,20 +101,46 @@ async function apiRequest<T>(method: "GET" | "POST", path: string, body?: unknow
       throw new UpstreamError(res.status, message, body);
     }
 
-    return (await res.json()) as T;
+    const json = await res.json();
+    checkApiLevelError(json);
+    return json as T;
   }
 
   throw new UpstreamError(429, "handelsregister.ai-API: Rate-Limit erreicht (429) - bitte später erneut versuchen.");
 }
 
-function errorMessageForStatus(status: number, body: unknown): string {
+/**
+ * handelsregister.ai liefert bei aufgebrauchten Credits HTTP 200 mit
+ * { meta: { message: "Insufficient credits ..." } } statt eines Fehlerstatus.
+ * Das würde sonst als (fast leeres) Ergebnis durchrutschen – hier hart abfangen.
+ */
+export function checkApiLevelError(body: unknown): void {
+  if (typeof body !== "object" || body === null) return;
+  const meta = (body as Record<string, unknown>).meta;
+  if (typeof meta !== "object" || meta === null) return;
+  const message = (meta as Record<string, unknown>).message;
+  if (typeof message !== "string") return;
+  if (/insufficient credits|no credits|credits.*(exhaust|remaining: ?0)/i.test(message)) {
+    throw new UpstreamError(
+      402,
+      "handelsregister.ai-API: Keine Credits mehr verfügbar. Bitte Guthaben im handelsregister.ai-Dashboard aufladen.",
+      body
+    );
+  }
+}
+
+export function errorMessageForStatus(status: number, body: unknown): string {
   const detail = extractErrorDetail(body);
   switch (status) {
     case 401:
     case 403:
       return "handelsregister.ai-API: Authentifizierung fehlgeschlagen (Key ungültig oder Credits aufgebraucht).";
-    case 404:
-      return "handelsregister.ai-API: Nicht gefunden.";
+    case 404: {
+      const hint = "Bitte vollständigen Firmennamen inkl. Rechtsform verwenden (z. B. „OroraTech GmbH\").";
+      return detail
+        ? `handelsregister.ai-API: ${detail}. ${hint}`
+        : `handelsregister.ai-API: Firma nicht gefunden. ${hint}`;
+    }
     case 402:
       return "handelsregister.ai-API: Keine Credits mehr verfügbar.";
     case 429:
@@ -123,7 +150,7 @@ function errorMessageForStatus(status: number, body: unknown): string {
   }
 }
 
-function extractErrorDetail(body: unknown): string {
+export function extractErrorDetail(body: unknown): string {
   if (typeof body !== "object" || body === null) return "";
   const record = body as Record<string, unknown>;
   if (typeof record.message === "string") return record.message;
@@ -132,6 +159,14 @@ function extractErrorDetail(body: unknown): string {
     const error = record.error as Record<string, unknown>;
     if (typeof error.message === "string") return error.message;
     if (typeof error.code === "string") return error.code;
+  }
+  // FastAPI-Stil: { detail: [{ msg: "..." }] } oder { detail: "..." }
+  if (typeof record.detail === "string") return record.detail;
+  if (Array.isArray(record.detail)) {
+    const first = record.detail[0];
+    if (first && typeof first === "object" && typeof (first as Record<string, unknown>).msg === "string") {
+      return (first as Record<string, unknown>).msg as string;
+    }
   }
   return "";
 }
@@ -157,9 +192,10 @@ export async function proxyGet(path: string): Promise<unknown> {
   if (cached !== undefined) return cached;
 
   const result = await apiRequest<unknown>("GET", path);
-  // Bei echten Upstream-Calls (Cache-Miss) Credits erfassen
+  // Bei echten Upstream-Calls (Cache-Miss) Credits erfassen – global und pro Nutzer.
   try {
     await recordUsage(path, "GET");
+    chargeCurrentUser(creditCost(path).credits);
   } catch {
     // ignore
   }
@@ -172,6 +208,7 @@ export async function proxyPost(path: string, body: unknown): Promise<unknown> {
   const result = await apiRequest<unknown>("POST", path, body);
   try {
     await recordUsage(path, "POST");
+    chargeCurrentUser(creditCost(path).credits);
   } catch {
     // ignore
   }

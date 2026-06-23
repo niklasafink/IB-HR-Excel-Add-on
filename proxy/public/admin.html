@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gordon – Admin</title>
+    <style>
+      :root { --excel: #217346; --excel-dark: #185c37; --line: #d9d9d9; --muted: #666; --danger: #b3261e; }
+      * { box-sizing: border-box; }
+      body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; color: #242424; margin: 0; background: #f7f7f7; }
+      header { background: var(--excel-dark); color: #fff; padding: 16px 24px; }
+      header h1 { margin: 0; font-size: 18px; }
+      main { max-width: 920px; margin: 0 auto; padding: 24px; }
+      .card { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 16px; margin-bottom: 16px; }
+      label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+      input, button { font: inherit; }
+      input { height: 34px; padding: 0 10px; border: 1px solid #c8c8c8; border-radius: 3px; width: 100%; }
+      button { height: 34px; padding: 0 14px; border-radius: 3px; border: 1px solid transparent; cursor: pointer; font-weight: 500; }
+      button.primary { background: var(--excel); color: #fff; }
+      button.secondary { background: #fff; border-color: #c8c8c8; }
+      button.danger { background: #fff; color: var(--danger); border-color: #e3b5b2; }
+      .row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
+      .row > div { flex: 1; min-width: 140px; }
+      table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+      th { font-size: 12px; color: var(--muted); }
+      .pill { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; background: #eee; }
+      .pill.on { background: #d6f5d6; color: var(--excel-dark); }
+      .pill.off { background: #f5d6d6; color: var(--danger); }
+      .actions button { height: 28px; padding: 0 8px; font-size: 12px; margin: 2px 0; }
+      .muted { color: var(--muted); font-size: 12px; }
+      .token-box { background: #fff7d6; border: 1px solid #e6d27a; padding: 10px; border-radius: 4px; font-family: monospace; word-break: break-all; margin-top: 8px; }
+      .hidden { display: none; }
+      .bar { display: inline-block; min-width: 90px; }
+    </style>
+  </head>
+  <body>
+    <header><h1>Gordon – Nutzer- &amp; Limit-Verwaltung</h1></header>
+    <main>
+      <div class="card" id="authCard">
+        <label for="adminToken">Admin-Token</label>
+        <div class="row">
+          <div><input id="adminToken" type="password" placeholder="ADMIN_TOKEN aus der Proxy-Konfiguration" /></div>
+          <button class="primary" id="loginBtn" type="button">Anmelden</button>
+        </div>
+        <p class="muted" id="authStatus"></p>
+      </div>
+
+      <div id="app" class="hidden">
+        <div class="card">
+          <h3 style="margin-top:0">Neuen Nutzer anlegen</h3>
+          <div class="row">
+            <div><label for="newName">Name</label><input id="newName" type="text" placeholder="z. B. Max Mustermann" /></div>
+            <div><label for="newLimit">Credit-Limit</label><input id="newLimit" type="number" min="0" value="1000" /></div>
+            <button class="primary" id="createBtn" type="button">Anlegen</button>
+          </div>
+          <div id="newToken" class="token-box hidden"></div>
+        </div>
+
+        <div class="card">
+          <h3 style="margin-top:0">Nutzer</h3>
+          <table>
+            <thead>
+              <tr><th>Name</th><th>Verbrauch</th><th>Limit</th><th>Status</th><th>Aktionen</th></tr>
+            </thead>
+            <tbody id="userRows"></tbody>
+          </table>
+          <p class="muted" id="listStatus"></p>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      let token = sessionStorage.getItem("gordon.adminToken") || "";
+
+      function headers() {
+        return { "x-admin-token": token, "Content-Type": "application/json" };
+      }
+
+      async function api(path, options = {}) {
+        const res = await fetch(`/api/admin${path}`, { ...options, headers: { ...headers(), ...(options.headers || {}) } });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.error || `Fehler ${res.status}`);
+        return body;
+      }
+
+      async function login() {
+        token = $("adminToken").value.trim();
+        try {
+          await api("/users");
+          sessionStorage.setItem("gordon.adminToken", token);
+          $("authCard").classList.add("hidden");
+          $("app").classList.remove("hidden");
+          render();
+        } catch (err) {
+          $("authStatus").textContent = err.message;
+        }
+      }
+
+      function statusPill(u) {
+        if (u.disabled) return '<span class="pill off">gesperrt</span>';
+        if (u.unlimited) return '<span class="pill on">unbegrenzt</span>';
+        return '<span class="pill">aktiv</span>';
+      }
+
+      function render() {
+        api("/users")
+          .then(({ users }) => {
+            $("userRows").innerHTML = users
+              .map(
+                (u) => `
+              <tr data-id="${u.id}">
+                <td>${escapeHtml(u.name)}<br><span class="muted">${u.id}</span></td>
+                <td><span class="bar">${u.creditsUsed}</span></td>
+                <td><input type="number" min="0" value="${u.creditLimit}" style="width:90px" class="limitInput" /></td>
+                <td>${statusPill(u)}</td>
+                <td class="actions">
+                  <button class="secondary saveBtn" type="button">Limit speichern</button>
+                  <button class="secondary unlimitedBtn" type="button">${u.unlimited ? "Limit aktivieren" : "Limit aufheben"}</button>
+                  <button class="secondary disableBtn" type="button">${u.disabled ? "Entsperren" : "Sperren"}</button>
+                  <button class="secondary resetBtn" type="button">Verbrauch 0</button>
+                  <button class="danger delBtn" type="button">Löschen</button>
+                </td>
+              </tr>`
+              )
+              .join("");
+            bindRowActions(users);
+          })
+          .catch((err) => ($("listStatus").textContent = err.message));
+      }
+
+      function bindRowActions(users) {
+        const byId = Object.fromEntries(users.map((u) => [u.id, u]));
+        document.querySelectorAll("#userRows tr").forEach((tr) => {
+          const id = tr.dataset.id;
+          const u = byId[id];
+          tr.querySelector(".saveBtn").onclick = () =>
+            act(() => api(`/users/${id}`, { method: "PATCH", body: JSON.stringify({ creditLimit: Number(tr.querySelector(".limitInput").value) }) }));
+          tr.querySelector(".unlimitedBtn").onclick = () =>
+            act(() => api(`/users/${id}`, { method: "PATCH", body: JSON.stringify({ unlimited: !u.unlimited }) }));
+          tr.querySelector(".disableBtn").onclick = () =>
+            act(() => api(`/users/${id}`, { method: "PATCH", body: JSON.stringify({ disabled: !u.disabled }) }));
+          tr.querySelector(".resetBtn").onclick = () => act(() => api(`/users/${id}/reset`, { method: "POST" }));
+          tr.querySelector(".delBtn").onclick = () => {
+            if (confirm(`Nutzer "${u.name}" wirklich löschen?`)) act(() => api(`/users/${id}`, { method: "DELETE" }));
+          };
+        });
+      }
+
+      function act(fn) {
+        fn().then(render).catch((err) => alert(err.message));
+      }
+
+      function createUser() {
+        const name = $("newName").value.trim();
+        const creditLimit = Number($("newLimit").value) || 0;
+        if (!name) return;
+        api("/users", { method: "POST", body: JSON.stringify({ name, creditLimit }) })
+          .then(({ token: userToken, user }) => {
+            $("newToken").classList.remove("hidden");
+            $("newToken").innerHTML = `<b>Zugangs-Token für ${escapeHtml(user.name)}</b> (nur jetzt sichtbar – an den Nutzer weitergeben):<br>${userToken}`;
+            $("newName").value = "";
+            render();
+          })
+          .catch((err) => alert(err.message));
+      }
+
+      function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+      }
+
+      $("loginBtn").onclick = login;
+      $("adminToken").addEventListener("keydown", (e) => e.key === "Enter" && login());
+      $("createBtn").onclick = createUser;
+      if (token) {
+        $("adminToken").value = token;
+        login();
+      }
+    </script>
+  </body>
+</html>
