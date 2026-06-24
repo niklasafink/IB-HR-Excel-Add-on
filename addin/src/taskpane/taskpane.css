@@ -40,19 +40,36 @@ main {
 
 .pane-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--line);
 }
 
-.eyebrow {
-  margin: 0 0 2px;
+.company-title {
+  margin-top: 2px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.pane-head-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.credits {
+  text-align: right;
+  font-size: 11px;
+  line-height: 1.35;
   color: var(--muted);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+}
+
+.credits b {
+  color: var(--excel-dark);
+  font-weight: 600;
 }
 
 h1,

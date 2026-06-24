@@ -16,10 +16,10 @@ const NUM_FORMAT = "#,##0.00";
 /** Leitet ein passendes Zahlenformat aus dem Spaltennamen ab (oder null). */
 function formatForHeader(header: string): string | null {
   const h = header.toLowerCase();
-  if (/percent|prozent|quote/.test(h)) return "0.00";
+  if (/percent|prozent|quote|anteil/.test(h)) return "0.00";
   if (/year|jahr|level|date|datum/.test(h)) return null;
   if (
-    /amount|value|wert|revenue|umsatz|income|gewinn|capital|kapital|ebit|cash|equity|eigenkapital|liabilit|balance|bilanz|total|summe|contribution|einlage|expense|aufwand|betrag|asset|verm/.test(
+    /amount|value|wert|revenue|umsatz|income|gewinn|überschuss|fehlbetrag|capital|kapital|ebit|cash|equity|eigenkapital|liabilit|balance|bilanz|total|summe|contribution|einlage|expense|aufwand|betrag|asset|verm/.test(
       h
     )
   ) {
@@ -81,28 +81,41 @@ export function buildExcelModel(featureKey: string, response: unknown): ExcelMod
 
   switch (featureKey) {
     case "financial_kpi":
-      return model(feature.shortLabel, [arrayTable("financial_kpi", asArray(value))]);
+      return model(feature.shortLabel, [arrayTable("Finanzkennzahlen", kpiRows(value))]);
     case "balance_sheet_accounts":
       return model(feature.shortLabel, balanceSheetTables(asArray(value)));
-    case "profit_and_loss_account":
-      return model(feature.shortLabel, [hierarchyTable("profit_and_loss_account", asArray(value))]);
+    case "profit_and_loss_account": {
+      const pl = hierarchyTable("Gewinn- und Verlustrechnung (GuV)", asArray(value));
+      if (!pl.rows.length) {
+        return model(feature.shortLabel, [
+          {
+            title: "Gewinn- und Verlustrechnung (GuV)",
+            headers: ["Hinweis"],
+            rows: [["Im Handelsregister wurde keine GuV veröffentlicht."]],
+          },
+        ]);
+      }
+      return model(feature.shortLabel, [pl]);
+    }
     case "related_persons":
       return model(feature.shortLabel, relatedPersonsTables(value));
     case "publications":
-    case "news":
+      return model(feature.shortLabel, [arrayTable("Bekanntmachungen", publicationRows(value))]);
     case "insolvency_publications":
-      return model(feature.shortLabel, [arrayTable(featureKey, asArray(value))]);
+      return model(feature.shortLabel, [arrayTable("Insolvenzbekanntmachungen", insolvencyRows(value))]);
+    case "news":
+      return model(feature.shortLabel, [arrayTable("Nachrichten", newsRows(value))]);
     case "ubos":
-      return model(feature.shortLabel, [arrayTable("ubos", uboRows(value))]);
+      return model(feature.shortLabel, [arrayTable("Wirtschaftlich Berechtigte (UBOs)", uboRows(value))]);
     case "shareholders":
-      return model(feature.shortLabel, [arrayTable("shareholders", shareholderRows(value))]);
+      return model(feature.shortLabel, [arrayTable("Gesellschafter", shareholderRows(value))]);
     case "shareholdings":
-      return model(feature.shortLabel, [arrayTable("shareholdings", shareholdingRows(value))]);
+      return model(feature.shortLabel, [arrayTable("Beteiligungen", shareholdingRows(value))]);
     case "annual_financial_statements":
     case "annual_financial_statements__html":
       return model(feature.shortLabel, documentTables(featureKey, value));
     case "website_content":
-      return model(feature.shortLabel, websiteTables(value));
+      return model(feature.shortLabel, websiteTables(root));
     default:
       return model(feature.shortLabel, [genericTable(featureKey, response)]);
   }
@@ -127,26 +140,30 @@ function arrayTable(title: string, rows: unknown[]): ExcelTable {
 
 function relatedPersonsTables(value: unknown): ExcelTable[] {
   const record = asRecord(value);
-  if (Array.isArray(value)) return [arrayTable("related_persons", value)];
+  if (Array.isArray(value)) return [arrayTable("Geschäftsführung & Organe", value.map(normalizePerson))];
 
+  const titles: Record<string, string> = {
+    current: "Aktuelle Organe",
+    former: "Ehemalige Organe",
+    all: "Alle Personen",
+  };
   const tables: ExcelTable[] = [];
   for (const key of ["current", "former", "all"]) {
     const rows = asArray(record[key]);
-    if (rows.length) tables.push(arrayTable(`related_persons_${key}`, rows.map(normalizePerson)));
+    if (rows.length) tables.push(arrayTable(titles[key] ?? key, rows.map(normalizePerson)));
   }
-  return tables.length ? tables : [genericTable("related_persons", value)];
+  return tables.length ? tables : [genericTable("Geschäftsführung & Organe", value)];
 }
 
 function normalizePerson(value: unknown): JsonRecord {
   const person = asRecord(value);
   const role = asRecord(person.role);
   return {
-    name: person.name,
-    role_de: asRecord(role.de).long ?? role.de,
-    role_en: asRecord(role.en).long ?? role.en,
-    start_date: person.start_date,
-    end_date: person.end_date,
-    status: person.status,
+    Name: person.name,
+    Rolle: profileText(asRecord(role.de).long ?? role.de),
+    Seit: formatGermanDate(person.start_date),
+    Bis: formatGermanDate(person.end_date),
+    Status: statusLabel(person.status),
   };
 }
 
@@ -157,11 +174,11 @@ function uboRows(value: unknown): JsonRecord[] {
     const person = asRecord(r.person);
     const home = asRecord(asRecord(person.location).home);
     return {
-      name: person.name,
-      birth_date: person.birth_date,
-      ownership_percentage: r.ownership_percentage,
-      city: home.city,
-      country: home.country,
+      Name: person.name,
+      Geburtsdatum: formatGermanDate(person.birth_date),
+      "Anteil %": r.ownership_percentage,
+      Ort: home.city,
+      Land: home.country,
     };
   });
 }
@@ -174,12 +191,12 @@ function shareholderRows(value: unknown): JsonRecord[] {
     const contribution = asRecord(r.contribution);
     const personName = [holder.first_name, holder.last_name].filter(Boolean).join(" ");
     return {
-      name: holder.entity_name ?? holder.name ?? (personName || null),
-      address: holder.address,
-      country: holder.country_code,
-      registration: holder.registration_reference,
-      contribution_amount: contribution.amount,
-      currency: contribution.currency,
+      Name: holder.entity_name ?? holder.name ?? (personName || null),
+      Adresse: holder.address,
+      Land: holder.country_code,
+      Register: holder.registration_reference,
+      Einlage: contribution.amount,
+      Währung: contribution.currency,
     };
   });
 }
@@ -195,16 +212,115 @@ function shareholdingRows(value: unknown): JsonRecord[] {
       const ownership = asRecord(r.ownership);
       const contribution = asRecord(ownership.contribution);
       out.push({
-        status,
-        organization: org.name,
-        percentage: ownership.percentage,
-        contribution_amount: contribution.amount,
-        currency: contribution.currency,
-        as_of: r.as_of,
+        Status: statusDe(status),
+        "Beteiligung an": org.name,
+        "Anteil %": ownership.percentage,
+        Einlage: contribution.amount,
+        Währung: contribution.currency,
+        Stand: formatGermanDate(r.as_of),
       });
     }
   }
   return out;
+}
+
+const KPI_LABELS: Record<string, string> = {
+  year: "Jahr",
+  revenue: "Umsatz",
+  net_income: "Jahresüberschuss",
+  active_total: "Bilanzsumme",
+  material_expenses: "Materialaufwand",
+  personnel_expenses: "Personalaufwand",
+  employees: "Mitarbeiter",
+};
+const KPI_RANK = ["revenue", "net_income", "active_total", "material_expenses", "personnel_expenses", "employees"];
+
+/**
+ * Finanzkennzahlen: „Jahr" zuerst, danach die KPIs – Spalten **mit** Werten vor
+ * den leeren, alle mit deutschen Bezeichnungen.
+ */
+function kpiRows(value: unknown): JsonRecord[] {
+  const entries = asArray(value).map(asRecord);
+  if (!entries.length) return [];
+  const keys = new Set<string>();
+  for (const entry of entries) for (const key of Object.keys(entry)) if (key !== "year") keys.add(key);
+  const ordered = [...keys].sort((a, b) => kpiRank(a) - kpiRank(b));
+  const hasData = (key: string): boolean =>
+    entries.some((entry) => entry[key] !== null && entry[key] !== undefined && entry[key] !== "");
+  const cols = ["year", ...ordered.filter(hasData), ...ordered.filter((key) => !hasData(key))];
+  return entries.map((entry) => {
+    const out: JsonRecord = {};
+    for (const key of cols) out[KPI_LABELS[key] ?? humanizeKey(key)] = entry[key];
+    return out;
+  });
+}
+
+function kpiRank(key: string): number {
+  const i = KPI_RANK.indexOf(key);
+  return i === -1 ? 999 : i;
+}
+
+/** Unbekannte Schlüssel lesbar machen: "bs_equity_total" -> "Bs Equity Total". */
+function humanizeKey(key: string): string {
+  return key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/** Nachrichten: Datum, Titel, Quelle, Link (ohne interne ID). */
+function newsRows(value: unknown): JsonRecord[] {
+  return asArray(value).map((entry) => {
+    const r = asRecord(entry);
+    return {
+      Datum: formatGermanDate(r.publication_date),
+      Titel: profileText(r.title),
+      Quelle: profileText(r.source),
+      Link: profileText(r.url),
+    };
+  });
+}
+
+/** Bekanntmachungen (Event-Historie) auf wenige, lesbare Spalten reduzieren. */
+function publicationRows(value: unknown): JsonRecord[] {
+  return asArray(value).map((entry) => {
+    const r = asRecord(entry);
+    const details = asRecord(r.details);
+    const linked = asRecord(details.linked_entities);
+    const personName = asRecord(asRecord(linked.person).name);
+    const person = [personName.given, personName.family].map(profileText).filter(Boolean).join(" ");
+    return {
+      Datum: formatGermanDate(r.start_date),
+      Ereignis: localizedName(r.name),
+      Beschreibung: localizedName(asRecord(r.description).short),
+      "Beteiligte(r)": person || profileText(asRecord(linked.organization).name),
+      Details: publicationDetail(asRecord(details.value)),
+    };
+  });
+}
+
+/** Fasst das ereignis-spezifische Detail (Adresse, Rolle oder Betrag) kurz zusammen. */
+function publicationDetail(value: JsonRecord): string {
+  const role = asRecord(value.role);
+  if (role.name) return profileText(role.name);
+  if (value.formatted_address) return profileText(value.formatted_address);
+  if (typeof value.amount === "number") {
+    return [value.amount.toLocaleString("de-DE"), profileText(value.currency)].filter(Boolean).join(" ");
+  }
+  return "";
+}
+
+/** Insolvenzbekanntmachungen (flaches Format) mit deutschen Spalten. */
+function insolvencyRows(value: unknown): JsonRecord[] {
+  return asArray(value).map((entry) => {
+    const r = asRecord(entry);
+    return {
+      Datum: formatGermanDate(r.publication_date),
+      Art: profileText(r.publication_label),
+      Aktenzeichen: profileText(r.insolvency_id),
+      Gericht: profileText(r.court_city),
+      Sitz: profileText(r.seat),
+      Register: profileText(r.register),
+      Mitteilung: profileText(r.event_notice),
+    };
+  });
 }
 
 const HIERARCHY_META_KEYS = ["year", "date", "report_end_date", "fiscal_year_end"];
@@ -315,7 +431,7 @@ function hierarchyTable(title: string, records: unknown[]): ExcelTable {
 
   return {
     title,
-    headers: ["year", "path", "level", "account", "value"],
+    headers: ["Jahr", "Pfad", "Ebene", "Konto", "Wert"],
     rows,
     formats: [null, null, null, null, NUM_FORMAT],
   };
@@ -375,12 +491,102 @@ function documentTables(featureKey: string, value: unknown): ExcelTable[] {
   ];
 }
 
-function websiteTables(value: unknown): ExcelTable[] {
-  if (typeof value === "string") {
-    return [{ title: "website_content", headers: ["Inhalt"], rows: contentLines(value).map((line) => [line]) }];
+/**
+ * Aufbereitung des "Website"-Features: ein lesbares Unternehmensprofil mit
+ * deutschen Feldnamen statt des rohen API-Dumps. Falls echter Website-Inhalt
+ * (Markdown) vorhanden ist, wird er als zweite Tabelle angehängt.
+ */
+function websiteTables(root: JsonRecord): ExcelTable[] {
+  const tables: ExcelTable[] = [companyProfileTable(root)];
+  const content = typeof root.website_content === "string" ? root.website_content : "";
+  if (content.trim()) {
+    tables.push({ title: "Website-Inhalt", headers: ["Inhalt"], rows: contentLines(content).map((line) => [line]) });
   }
-  if (Array.isArray(value)) return [arrayTable("website_content", value)];
-  return [genericTable("website_content", value)];
+  return tables;
+}
+
+/** Kuratiertes Unternehmensprofil (Feld/Wert) mit verständlichen Bezeichnungen. */
+function companyProfileTable(root: JsonRecord): ExcelTable {
+  const reg = asRecord(root.registration);
+  const addr = asRecord(root.address);
+  const contact = asRecord(root.contact_data);
+  const rows: ExcelCell[][] = [];
+  const add = (label: string, value: unknown): void => {
+    const text = profileText(value);
+    if (text) rows.push([label, text]);
+  };
+
+  add("Unternehmen", root.name);
+  add("Status", statusLabel(root.status));
+  add("Rechtsform", root.legal_form);
+  add("Registergericht", reg.court);
+  add("Registerart", reg.register_type);
+  add("Registernummer", reg.register_number);
+  add("Gründungsdatum", formatGermanDate(root.registration_date));
+  add("Adresse", formatAddress(addr));
+  add("Bundesland", addr.state);
+  add("Land", addr.country);
+  add("Website", contact.website);
+  add("Telefon", contact.phone_number ?? contact.phone);
+  add("E-Mail", contact.email);
+  add("Branche", industryText(root.industry_classification));
+  add("Schlagwörter", joinList(root.keywords));
+  add("Produkte & Dienstleistungen", joinList(root.products_and_services));
+  add("Unternehmenszweck", purposeText(root.purpose));
+
+  if (!rows.length) return { title: "Unternehmensprofil", headers: ["Hinweis"], rows: [["Keine Daten verfügbar"]] };
+  return { title: "Unternehmensprofil", headers: ["Feld", "Wert"], rows };
+}
+
+function profileText(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return "";
+}
+
+/** Beteiligungs-Status (current/former) auf Deutsch. */
+function statusDe(status: string): string {
+  if (status === "current") return "Aktuell";
+  if (status === "former") return "Ehemalig";
+  return status;
+}
+
+function statusLabel(value: unknown): string {
+  const s = typeof value === "string" ? value.toUpperCase() : "";
+  if (s === "ACTIVE") return "Aktiv";
+  if (s === "INACTIVE" || s === "LIQUIDATION") return s === "LIQUIDATION" ? "In Liquidation" : "Inaktiv";
+  return typeof value === "string" ? value : "";
+}
+
+/** "2018-09-28T00:00:00+00:00" -> "28.09.2018". */
+function formatGermanDate(value: unknown): string {
+  const s = typeof value === "string" ? value : "";
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : "";
+}
+
+function formatAddress(addr: JsonRecord): string {
+  const formatted = typeof addr.formatted_value === "string" ? addr.formatted_value.trim() : "";
+  if (formatted) return formatted;
+  const line1 = [addr.street, addr.house_number].map(profileText).filter(Boolean).join(" ");
+  const line2 = [addr.postal_code, addr.city].map(profileText).filter(Boolean).join(" ");
+  return [line1, line2].filter(Boolean).join(", ");
+}
+
+function industryText(value: unknown): string {
+  const ic = asRecord(value);
+  const list = asArray(ic.WZ2025).length ? asArray(ic.WZ2025) : asArray(ic.WZ2008);
+  const labels = list.map((entry) => profileText(asRecord(entry).label)).filter(Boolean);
+  return labels.join("; ");
+}
+
+function joinList(value: unknown): string {
+  return asArray(value).map(profileText).filter(Boolean).join("; ");
+}
+
+function purposeText(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+  return profileText(asRecord(value).purpose);
 }
 
 /** Zerlegt langen Text in nicht-leere Zeilen, mit Obergrenzen gegen Excel-Limits. */

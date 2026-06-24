@@ -144,6 +144,17 @@
                   <Action xsi:type="ShowTaskpane"><TaskpaneId>GordanV2.Api</TaskpaneId><SourceLocation resid="Url.F13" /></Action>
                 </Control>
               </Group>
+
+              <Group id="GordanV2.Contact">
+                <Label resid="Group.Contact" />
+                <Icon><bt:Image size="16" resid="Email.16" /><bt:Image size="32" resid="Email.32" /><bt:Image size="80" resid="Email.80" /></Icon>
+                <Control xsi:type="Button" id="GV2.Email">
+                  <Label resid="Btn.Email" />
+                  <Supertip><Title resid="Btn.Email" /><Description resid="Tip.Email" /></Supertip>
+                  <Icon><bt:Image size="16" resid="Email.16" /><bt:Image size="32" resid="Email.32" /><bt:Image size="80" resid="Email.80" /></Icon>
+                  <Action xsi:type="ExecuteFunction"><FunctionName>sendEmail</FunctionName></Action>
+                </Control>
+              </Group>
               <Label resid="Tab.Label" />
             </CustomTab>
           </ExtensionPoint>
@@ -156,6 +167,9 @@
         <bt:Image id="Icon.16" DefaultValue="https://localhost:3000/assets/icon-16.png" />
         <bt:Image id="Icon.32" DefaultValue="https://localhost:3000/assets/icon-32.png" />
         <bt:Image id="Icon.80" DefaultValue="https://localhost:3000/assets/icon-80.png" />
+        <bt:Image id="Email.16" DefaultValue="https://localhost:3000/assets/email-16.png" />
+        <bt:Image id="Email.32" DefaultValue="https://localhost:3000/assets/email-32.png" />
+        <bt:Image id="Email.80" DefaultValue="https://localhost:3000/assets/email-80.png" />
         <bt:Image id="F1.16" DefaultValue="https://localhost:3000/assets/feature-financial_kpi-16.png" />
         <bt:Image id="F1.32" DefaultValue="https://localhost:3000/assets/feature-financial_kpi-32.png" />
         <bt:Image id="F1.80" DefaultValue="https://localhost:3000/assets/feature-financial_kpi-80.png" />
@@ -213,6 +227,8 @@
         <bt:String id="Group.Publications" DefaultValue="Publications" />
         <bt:String id="Group.Ownership" DefaultValue="Ownership" />
         <bt:String id="Group.AI" DefaultValue="AI" />
+        <bt:String id="Group.Contact" DefaultValue="Support" />
+        <bt:String id="Btn.Email" DefaultValue="Support" />
         <bt:String id="Btn.F1" DefaultValue="KPI" />
         <bt:String id="Btn.F2" DefaultValue="Balance" />
         <bt:String id="Btn.F3" DefaultValue="P&amp;L" />
@@ -238,6 +254,7 @@
         <bt:String id="Tip.F11" DefaultValue="ubos · Beta · 10 Credits — wirtschaftlich Berechtigte abrufen." />
         <bt:String id="Tip.F12" DefaultValue="shareholdings · Beta · 5 Credits — Beteiligungen abrufen." />
         <bt:String id="Tip.F13" DefaultValue="website_content · AI · 0 Credits — Website-Inhalte als Markdown abrufen." />
+        <bt:String id="Tip.Email" DefaultValue="Support kontaktieren (niklas@gordonsregister.com) – öffnet dein Standard-Mailprogramm." />
         <bt:String id="GetStarted.Description" DefaultValue="Wähle im Ribbon ein API-Feature, gib ein Unternehmen ein und sende den Request an handelsregister.ai." />
       </bt:LongStrings>
     </Resources>

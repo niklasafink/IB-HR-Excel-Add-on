@@ -16,8 +16,16 @@ const BASE_URL = (
 ).replace(/\/+$/, "");
 const API_KEY = process.env.HANDELSREGISTER_API_KEY || "";
 const CACHE_TTL_MS = (Number(process.env.CACHE_TTL_SECONDS) || 86400) * 1000;
-import { recordUsage, creditCost } from "./usage.js";
+import { createHash } from "node:crypto";
+import { recordUsage, creditCost, setCreditsRemaining } from "./usage.js";
 import { chargeCurrentUser } from "./users.js";
+import { chargeCurrentTenant } from "./tenants.js";
+import { requestContext } from "./context.js";
+
+/** Der für diese Anfrage gültige API-Key: Mandanten-Key aus dem Kontext, sonst Default. */
+function currentApiKey(): string {
+  return requestContext.getStore()?.apiKey || API_KEY;
+}
 
 export class UpstreamError extends Error {
   status: number;
@@ -69,7 +77,13 @@ export function assertConfigured(): void {
  * Retryt einmal bei 429 mit kurzem Backoff. Wirft UpstreamError bei Fehlern.
  */
 async function apiRequest<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<T> {
-  assertConfigured();
+  const apiKey = currentApiKey();
+  if (!apiKey) {
+    throw new UpstreamError(
+      500,
+      "Kein handelsregister.ai-API-Key konfiguriert (weder Mandanten- noch Default-Key)."
+    );
+  }
   const url = `${BASE_URL}${path}`;
   const hasBody = body !== undefined;
 
@@ -79,7 +93,7 @@ async function apiRequest<T>(method: "GET" | "POST", path: string, body?: unknow
       res = await fetch(url, {
         method,
         headers: {
-          "x-api-key": API_KEY,
+          "x-api-key": apiKey,
           Accept: "application/json",
           ...(hasBody ? { "Content-Type": "application/json" } : {}),
         },
@@ -102,6 +116,7 @@ async function apiRequest<T>(method: "GET" | "POST", path: string, body?: unknow
     }
 
     const json = await res.json();
+    captureCreditsRemaining(json);
     checkApiLevelError(json);
     return json as T;
   }
@@ -114,6 +129,15 @@ async function apiRequest<T>(method: "GET" | "POST", path: string, body?: unknow
  * { meta: { message: "Insufficient credits ..." } } statt eines Fehlerstatus.
  * Das würde sonst als (fast leeres) Ergebnis durchrutschen – hier hart abfangen.
  */
+/** Liest meta.credits_remaining aus der Antwort und merkt sich das Restguthaben. */
+function captureCreditsRemaining(body: unknown): void {
+  if (typeof body !== "object" || body === null) return;
+  const meta = (body as Record<string, unknown>).meta;
+  if (typeof meta !== "object" || meta === null) return;
+  const remaining = (meta as Record<string, unknown>).credits_remaining;
+  if (typeof remaining === "number") setCreditsRemaining(remaining);
+}
+
 export function checkApiLevelError(body: unknown): void {
   if (typeof body !== "object" || body === null) return;
   const meta = (body as Record<string, unknown>).meta;
@@ -185,17 +209,25 @@ function sleep(ms: number): Promise<void> {
 
 // ---- Öffentliche Service-Funktionen -------------------------------------
 
+/** Cache-Schlüssel inkl. Key-Hash, damit Mandanten mit eigenem Key getrennt cachen. */
+function cacheKeyFor(path: string): string {
+  const keyHash = createHash("sha256").update(currentApiKey()).digest("hex").slice(0, 12);
+  return `get:${keyHash}:${path}`;
+}
+
 /** Authentifizierter, gecachter GET gegen einen beliebigen Upstream-Pfad. */
 export async function proxyGet(path: string): Promise<unknown> {
-  const key = `get:${path}`;
+  const key = cacheKeyFor(path);
   const cached = cacheGet(key);
   if (cached !== undefined) return cached;
 
   const result = await apiRequest<unknown>("GET", path);
-  // Bei echten Upstream-Calls (Cache-Miss) Credits erfassen – global und pro Nutzer.
+  // Bei echten Upstream-Calls (Cache-Miss) Credits erfassen – global, pro Nutzer und pro Mandant.
   try {
     await recordUsage(path, "GET");
-    chargeCurrentUser(creditCost(path).credits);
+    const credits = creditCost(path).credits;
+    chargeCurrentUser(credits);
+    chargeCurrentTenant(credits);
   } catch {
     // ignore
   }
@@ -208,7 +240,9 @@ export async function proxyPost(path: string, body: unknown): Promise<unknown> {
   const result = await apiRequest<unknown>("POST", path, body);
   try {
     await recordUsage(path, "POST");
-    chargeCurrentUser(creditCost(path).credits);
+    const credits = creditCost(path).credits;
+    chargeCurrentUser(credits);
+    chargeCurrentTenant(credits);
   } catch {
     // ignore
   }

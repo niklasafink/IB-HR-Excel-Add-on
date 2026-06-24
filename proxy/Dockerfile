@@ -19,9 +19,10 @@ RUN npm ci --omit=dev
 COPY --from=build /app/dist ./dist
 COPY public ./public
 
-# Laufzeitdaten (users.json/usage.json) in ein gemountetes Volume legen.
+# Laufzeitdaten (users/tenants/usage) in ein gemountetes Volume legen.
 ENV USERS_FILE=/data/users.json
 ENV USAGE_FILE=/data/usage.json
+ENV TENANTS_FILE=/data/tenants.json
 VOLUME ["/data"]
 
 EXPOSE 3001

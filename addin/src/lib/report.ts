@@ -14,9 +14,6 @@ export const YEAR_FEATURES = new Set<string>([
   "financial_kpi",
   "balance_sheet_accounts",
   "profit_and_loss_account",
-  "publications",
-  "news",
-  "insolvency_publications",
 ]);
 
 export type TargetMode = "per-company" | "combined";
@@ -158,6 +155,28 @@ async function fetchWithTimeout(url: string, timeoutMs = 30000): Promise<Respons
     throw err;
   } finally {
     clearTimeout(timer);
+  }
+}
+
+export interface UsageInfo {
+  /** Restguthaben laut handelsregister.ai (oder null, falls noch unbekannt). */
+  creditsRemaining: number | null;
+  /** Bislang über den Proxy verbrauchte Credits. */
+  totalCredits: number;
+}
+
+/** Holt den aktuellen Credit-Stand vom Proxy (für die Anzeige im Kopfbereich). */
+export async function fetchUsage(): Promise<UsageInfo | null> {
+  try {
+    const res = await fetchWithTimeout(`${proxyBaseUrl()}/usage`, 10000);
+    if (!res.ok) return null;
+    const body = (await res.json()) as { creditsRemaining?: unknown; totalCredits?: unknown };
+    return {
+      creditsRemaining: typeof body.creditsRemaining === "number" ? body.creditsRemaining : null,
+      totalCredits: typeof body.totalCredits === "number" ? body.totalCredits : 0,
+    };
+  } catch {
+    return null;
   }
 }
 

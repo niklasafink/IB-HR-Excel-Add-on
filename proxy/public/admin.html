@@ -15,6 +15,7 @@
       label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
       input, button { font: inherit; }
       input { height: 34px; padding: 0 10px; border: 1px solid #c8c8c8; border-radius: 3px; width: 100%; }
+      select { height: 34px; padding: 0 8px; border: 1px solid #c8c8c8; border-radius: 3px; width: 100%; font: inherit; background: #fff; }
       button { height: 34px; padding: 0 14px; border-radius: 3px; border: 1px solid transparent; cursor: pointer; font-weight: 500; }
       button.primary { background: var(--excel); color: #fff; }
       button.secondary { background: #fff; border-color: #c8c8c8; }
@@ -48,9 +49,24 @@
 
       <div id="app" class="hidden">
         <div class="card">
+          <h3 style="margin-top:0">Mandanten (Kunden)</h3>
+          <p class="muted" style="margin-top:0">Eigener handelsregister.ai-Key pro Mandant – oder leer lassen für den geteilten Standard-Key.</p>
+          <div class="row">
+            <div><label for="newTenantName">Name</label><input id="newTenantName" type="text" placeholder="z. B. Muster GmbH" /></div>
+            <div><label for="newTenantKey">handelsregister.ai-Key (optional)</label><input id="newTenantKey" type="password" placeholder="leer = geteilter Standard-Key" /></div>
+            <button class="primary" id="createTenantBtn" type="button">Anlegen</button>
+          </div>
+          <table style="margin-top:12px">
+            <thead><tr><th>Mandant</th><th>API-Key</th><th>Verbrauch</th><th>Aktionen</th></tr></thead>
+            <tbody id="tenantRows"></tbody>
+          </table>
+        </div>
+
+        <div class="card">
           <h3 style="margin-top:0">Neuen Nutzer anlegen</h3>
           <div class="row">
             <div><label for="newName">Name</label><input id="newName" type="text" placeholder="z. B. Max Mustermann" /></div>
+            <div><label for="newTenant">Mandant</label><select id="newTenant"></select></div>
             <div><label for="newLimit">Credit-Limit</label><input id="newLimit" type="number" min="0" value="1000" /></div>
             <button class="primary" id="createBtn" type="button">Anlegen</button>
           </div>
@@ -61,7 +77,7 @@
           <h3 style="margin-top:0">Nutzer</h3>
           <table>
             <thead>
-              <tr><th>Name</th><th>Verbrauch</th><th>Limit</th><th>Status</th><th>Aktionen</th></tr>
+              <tr><th>Name</th><th>Mandant</th><th>Verbrauch</th><th>Limit</th><th>Status</th><th>Aktionen</th></tr>
             </thead>
             <tbody id="userRows"></tbody>
           </table>
@@ -85,17 +101,76 @@
         return body;
       }
 
+      let tenants = [];
+      let tenantsById = {};
+
       async function login() {
         token = $("adminToken").value.trim();
         try {
-          await api("/users");
+          await api("/tenants");
           sessionStorage.setItem("gordon.adminToken", token);
           $("authCard").classList.add("hidden");
           $("app").classList.remove("hidden");
-          render();
+          refreshAll();
         } catch (err) {
           $("authStatus").textContent = err.message;
         }
+      }
+
+      function refreshAll() {
+        return renderTenants().then(render);
+      }
+
+      function renderTenants() {
+        return api("/tenants").then(({ tenants: list }) => {
+          tenants = list;
+          tenantsById = Object.fromEntries(list.map((t) => [t.id, t]));
+          $("tenantRows").innerHTML = list
+            .map(
+              (t) => `
+            <tr data-id="${t.id}">
+              <td>${escapeHtml(t.name)}<br><span class="muted">${t.id}</span></td>
+              <td>${t.hasOwnKey ? "eigener Key <span class='muted'>" + escapeHtml(t.apiKeyHint) + "</span>" : '<span class="muted">Standard-Key</span>'}
+                  <input type="password" class="tenantKeyInput" placeholder="Key setzen/ändern" style="margin-top:4px" /></td>
+              <td><span class="bar">${t.creditsUsed}</span></td>
+              <td class="actions">
+                <button class="secondary tSaveKey" type="button">Key speichern</button>
+                <button class="secondary tReset" type="button">Verbrauch 0</button>
+                ${t.id === "default" ? "" : '<button class="danger tDel" type="button">Löschen</button>'}
+              </td>
+            </tr>`
+            )
+            .join("");
+          bindTenantActions();
+          populateTenantSelect();
+        });
+      }
+
+      function bindTenantActions() {
+        document.querySelectorAll("#tenantRows tr").forEach((tr) => {
+          const id = tr.dataset.id;
+          const t = tenantsById[id];
+          tr.querySelector(".tSaveKey").onclick = () => {
+            const apiKey = tr.querySelector(".tenantKeyInput").value;
+            act(() => api(`/tenants/${id}`, { method: "PATCH", body: JSON.stringify({ apiKey }) }));
+          };
+          tr.querySelector(".tReset").onclick = () => act(() => api(`/tenants/${id}/reset`, { method: "POST" }));
+          const del = tr.querySelector(".tDel");
+          if (del) del.onclick = () => { if (confirm(`Mandant "${t.name}" wirklich löschen?`)) act(() => api(`/tenants/${id}`, { method: "DELETE" })); };
+        });
+      }
+
+      function populateTenantSelect() {
+        $("newTenant").innerHTML = tenants.map((t) => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join("");
+      }
+
+      function createTenant() {
+        const name = $("newTenantName").value.trim();
+        const apiKey = $("newTenantKey").value;
+        if (!name) return;
+        api("/tenants", { method: "POST", body: JSON.stringify({ name, apiKey }) })
+          .then(() => { $("newTenantName").value = ""; $("newTenantKey").value = ""; refreshAll(); })
+          .catch((err) => alert(err.message));
       }
 
       function statusPill(u) {
@@ -112,6 +187,7 @@
                 (u) => `
               <tr data-id="${u.id}">
                 <td>${escapeHtml(u.name)}<br><span class="muted">${u.id}</span></td>
+                <td>${escapeHtml((tenantsById[u.tenantId] && tenantsById[u.tenantId].name) || u.tenantId || "")}</td>
                 <td><span class="bar">${u.creditsUsed}</span></td>
                 <td><input type="number" min="0" value="${u.creditLimit}" style="width:90px" class="limitInput" /></td>
                 <td>${statusPill(u)}</td>
@@ -160,19 +236,20 @@
       }
 
       function act(fn) {
-        fn().then(render).catch((err) => alert(err.message));
+        fn().then(refreshAll).catch((err) => alert(err.message));
       }
 
       function createUser() {
         const name = $("newName").value.trim();
         const creditLimit = Number($("newLimit").value) || 0;
+        const tenantId = $("newTenant").value;
         if (!name) return;
-        api("/users", { method: "POST", body: JSON.stringify({ name, creditLimit }) })
+        api("/users", { method: "POST", body: JSON.stringify({ name, creditLimit, tenantId }) })
           .then(({ token: userToken, user }) => {
             $("newToken").classList.remove("hidden");
             $("newToken").innerHTML = `<b>Zugangs-Token für ${escapeHtml(user.name)}</b> (nur jetzt sichtbar – an den Nutzer weitergeben):<br>${userToken}`;
             $("newName").value = "";
-            render();
+            refreshAll();
           })
           .catch((err) => alert(err.message));
       }
@@ -184,6 +261,7 @@
       $("loginBtn").onclick = login;
       $("adminToken").addEventListener("keydown", (e) => e.key === "Enter" && login());
       $("createBtn").onclick = createUser;
+      $("createTenantBtn").onclick = createTenant;
       if (token) {
         $("adminToken").value = token;
         login();

@@ -10,11 +10,14 @@
   <body>
     <main id="app" class="hidden">
       <header class="pane-head">
-        <div>
-          <p class="eyebrow">handelsregister.ai</p>
+        <div class="pane-head-main">
           <h1>Gordon</h1>
+          <div id="companyTitle" class="company-title"></div>
         </div>
-        <span id="healthDot" class="health-dot" title="Proxy-Status"></span>
+        <div class="pane-head-right">
+          <div id="credits" class="credits" title="Credits laut handelsregister.ai"></div>
+          <span id="healthDot" class="health-dot" title="Proxy-Status"></span>
+        </div>
       </header>
 
       <section class="feature-panel">
@@ -30,7 +33,7 @@
         </div>
         <div id="companyList" class="company-list"></div>
         <div class="add-row">
-          <input id="companyAdd" type="text" placeholder="Firma manuell hinzufügen" />
+          <input id="companyAdd" type="text" placeholder="Firma eingeben – oder Zelle markieren + „+“" />
           <button id="companyAddBtn" class="secondary" type="button">+</button>
         </div>
       </section>

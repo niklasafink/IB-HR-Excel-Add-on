@@ -12,3 +12,4 @@ dist/
 # Laufzeit-/Nutzerdaten (pro Instanz, nie committen)
 usage.json
 users.json
+tenants.json

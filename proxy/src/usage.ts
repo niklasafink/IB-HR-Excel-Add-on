@@ -23,10 +23,12 @@ export interface UsageSnapshot {
   totalCalls: number;
   since: string; // ISO-Zeitstempel des ersten gezählten Calls (bzw. Reset)
   byEndpoint: Record<string, EndpointUsage>;
+  /** Zuletzt von handelsregister.ai gemeldetes Restguthaben (meta.credits_remaining). */
+  creditsRemaining: number | null;
 }
 
 function emptyUsage(): UsageSnapshot {
-  return { totalCredits: 0, totalCalls: 0, since: new Date().toISOString(), byEndpoint: {} };
+  return { totalCredits: 0, totalCalls: 0, since: new Date().toISOString(), byEndpoint: {}, creditsRemaining: null };
 }
 
 let usage: UsageSnapshot = load();
@@ -39,10 +41,18 @@ function load(): UsageSnapshot {
       totalCalls: Number(raw.totalCalls) || 0,
       since: typeof raw.since === "string" ? raw.since : new Date().toISOString(),
       byEndpoint: raw.byEndpoint && typeof raw.byEndpoint === "object" ? raw.byEndpoint : {},
+      creditsRemaining: typeof raw.creditsRemaining === "number" ? raw.creditsRemaining : null,
     };
   } catch {
     return emptyUsage(); // Datei fehlt/defekt -> frisch starten
   }
+}
+
+/** Aktualisiert das zuletzt gemeldete Restguthaben (aus meta.credits_remaining). */
+export function setCreditsRemaining(value: number): void {
+  if (!Number.isFinite(value)) return;
+  usage.creditsRemaining = value;
+  persist();
 }
 
 function persist(): void {

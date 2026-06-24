@@ -9,6 +9,7 @@ import {
   userToken,
   setUserToken,
   checkHealth,
+  fetchUsage,
   YEAR_FEATURES,
   type ReportOptions,
   type ReportSummary,
@@ -34,6 +35,7 @@ Office.onReady((info) => {
   bindEvents();
   void refreshCompanies();
   void testConnection(false);
+  void refreshCredits();
 });
 
 function byId<T extends HTMLElement = HTMLElement>(id: string): T {
@@ -162,7 +164,11 @@ async function refreshCompanies(): Promise<void> {
 function addManualCompany(): void {
   const input = byId<HTMLInputElement>("companyAdd");
   const name = input.value.trim();
-  if (!name) return;
+  // Leeres Feld + "+" -> die aktuell in Excel markierte Zelle übernehmen.
+  if (!name) {
+    void refreshCompanies();
+    return;
+  }
   if (!companies.some((entry) => entry.name.toLowerCase() === name.toLowerCase())) {
     companies.push({ name, checked: true });
   }
@@ -174,6 +180,7 @@ function renderCompanyList(): void {
   const container = byId("companyList");
   if (!companies.length) {
     container.innerHTML = `<p class="muted-line">Noch keine Firmen.</p>`;
+    updateCompanyTitle();
     return;
   }
   container.innerHTML = companies
@@ -191,6 +198,7 @@ function renderCompanyList(): void {
     box.addEventListener("change", () => {
       const index = Number(box.dataset.index);
       if (companies[index]) companies[index].checked = box.checked;
+      updateCompanyTitle();
     });
   });
   container.querySelectorAll<HTMLButtonElement>("button[data-remove]").forEach((btn) => {
@@ -200,6 +208,32 @@ function renderCompanyList(): void {
       renderCompanyList();
     });
   });
+  updateCompanyTitle();
+}
+
+/** Zeigt die aktuelle(n) Firma(en) als Titel unter „Gordon". */
+function updateCompanyTitle(): void {
+  const el = byId("companyTitle");
+  const checked = selectedCompanies();
+  const names = checked.length ? checked : companies.map((entry) => entry.name);
+  if (!names.length) {
+    el.textContent = "";
+    return;
+  }
+  el.textContent = names.length === 1 ? names[0] : `${names[0]} +${names.length - 1}`;
+}
+
+/** Holt den Credit-Stand vom Proxy und zeigt ihn oben rechts an. */
+async function refreshCredits(): Promise<void> {
+  const el = byId("credits");
+  const usage = await fetchUsage();
+  if (!usage) {
+    el.innerHTML = "";
+    return;
+  }
+  const fmt = (n: number): string => n.toLocaleString("de-DE");
+  const remaining = usage.creditsRemaining === null ? "–" : fmt(usage.creditsRemaining);
+  el.innerHTML = `<div><b>${remaining}</b> Credits</div><div>${fmt(usage.totalCredits)} verbraucht</div>`;
 }
 
 function selectedCompanies(): string[] {
@@ -228,6 +262,7 @@ async function runGenerate(): Promise<void> {
     setStatus((err as Error).message, "err");
   } finally {
     button.disabled = false;
+    void refreshCredits();
   }
 }
 

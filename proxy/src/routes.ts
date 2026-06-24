@@ -5,7 +5,6 @@ import {
   authEnabled,
   isAdminToken,
   checkAccess,
-  userContext,
   listUsers,
   createUser,
   updateUser,
@@ -13,6 +12,17 @@ import {
   rotateToken,
   deleteUser,
 } from "./users.js";
+import {
+  getTenant,
+  effectiveApiKey,
+  listTenants,
+  createTenant,
+  updateTenant,
+  resetTenant,
+  deleteTenant,
+  DEFAULT_TENANT_ID,
+} from "./tenants.js";
+import { requestContext } from "./context.js";
 
 export const router = Router();
 export const adminRouter = Router();
@@ -40,7 +50,8 @@ export function userLimit(req: Request, res: Response, next: NextFunction): void
     res.status(check.status ?? 401).json({ error: check.error ?? "Zugriff verweigert." });
     return;
   }
-  userContext.run({ userId: user.id }, () => next());
+  const apiKey = effectiveApiKey(getTenant(user.tenantId));
+  requestContext.run({ userId: user.id, tenantId: user.tenantId, apiKey }, () => next());
 }
 
 // ---- Admin-API (durch ADMIN_TOKEN geschützt) ---------------------------
@@ -64,7 +75,8 @@ adminRouter.post("/users", (req, res) => {
   const body = asRecord(req.body);
   const name = text(body.name) || "Unbenannt";
   const creditLimit = Number(body.creditLimit) || 0;
-  res.status(201).json(createUser(name, creditLimit));
+  const tenantId = text(body.tenantId) || DEFAULT_TENANT_ID;
+  res.status(201).json(createUser(name, creditLimit, tenantId));
 });
 
 adminRouter.patch("/users/:id", (req, res) => {
@@ -103,6 +115,45 @@ adminRouter.post("/users/:id/rotate-token", (req, res) => {
 adminRouter.delete("/users/:id", (req, res) => {
   if (!deleteUser(req.params.id)) {
     res.status(404).json({ error: "Nutzer nicht gefunden." });
+    return;
+  }
+  res.json({ ok: true });
+});
+
+// ---- Mandanten (Admin) -------------------------------------------------
+
+adminRouter.get("/tenants", (_req, res) => res.json({ tenants: listTenants() }));
+
+adminRouter.post("/tenants", (req, res) => {
+  const body = asRecord(req.body);
+  res.status(201).json({ tenant: createTenant(text(body.name), text(body.apiKey)) });
+});
+
+adminRouter.patch("/tenants/:id", (req, res) => {
+  const body = asRecord(req.body);
+  const updated = updateTenant(req.params.id, {
+    name: typeof body.name === "string" ? body.name : undefined,
+    apiKey: typeof body.apiKey === "string" ? body.apiKey : undefined,
+  });
+  if (!updated) {
+    res.status(404).json({ error: "Mandant nicht gefunden." });
+    return;
+  }
+  res.json({ tenant: updated });
+});
+
+adminRouter.post("/tenants/:id/reset", (req, res) => {
+  const updated = resetTenant(req.params.id);
+  if (!updated) {
+    res.status(404).json({ error: "Mandant nicht gefunden." });
+    return;
+  }
+  res.json({ tenant: updated });
+});
+
+adminRouter.delete("/tenants/:id", (req, res) => {
+  if (!deleteTenant(req.params.id)) {
+    res.status(400).json({ error: "Mandant nicht gefunden oder Default-Mandant (nicht löschbar)." });
     return;
   }
   res.json({ ok: true });
