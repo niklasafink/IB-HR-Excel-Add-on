@@ -4,6 +4,8 @@ import { getUsageSummary, resetUsage } from "./usage.js";
 import {
   authEnabled,
   isAdminToken,
+  verifyAdminLogin,
+  loginEnabled,
   checkAccess,
   listUsers,
   createUser,
@@ -55,6 +57,25 @@ export function userLimit(req: Request, res: Response, next: NextFunction): void
 }
 
 // ---- Admin-API (durch ADMIN_TOKEN geschützt) ---------------------------
+
+/**
+ * Login per Username + Passwort (NICHT durch den Token-Guard geschützt, da er
+ * vor dessen Registrierung steht). Gibt bei Erfolg den internen Admin-Token
+ * zurück, den das Frontend für alle weiteren Admin-Anfragen nutzt.
+ */
+adminRouter.post("/login", (req: Request, res: Response) => {
+  if (!loginEnabled()) {
+    res.status(503).json({ error: "Login ist nicht konfiguriert (ADMIN_USER/ADMIN_PASSWORD fehlen)." });
+    return;
+  }
+  const body = asRecord(req.body);
+  const token = verifyAdminLogin(text(body.username), text(body.password));
+  if (!token) {
+    res.status(401).json({ error: "Benutzername oder Passwort falsch." });
+    return;
+  }
+  res.json({ token });
+});
 
 adminRouter.use((req: Request, res: Response, next: NextFunction) => {
   if (!authEnabled()) {

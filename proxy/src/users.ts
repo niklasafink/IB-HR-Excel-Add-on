@@ -16,7 +16,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { randomBytes, createHash } from "node:crypto";
+import { randomBytes, createHash, timingSafeEqual } from "node:crypto";
 import { requestContext } from "./context.js";
 import { DEFAULT_TENANT_ID } from "./tenants.js";
 
@@ -100,6 +100,32 @@ export function authEnabled(): boolean {
 
 export function isAdminToken(token: string | undefined): boolean {
   return !!token && !!ADMIN_TOKEN && token === ADMIN_TOKEN;
+}
+
+// ---- Admin-Login per Username + Passwort --------------------------------
+
+const ADMIN_USER = process.env.ADMIN_USER || "admin";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
+
+/** Zeitkonstanter String-Vergleich (verhindert Timing-Rückschlüsse aufs Passwort). */
+function safeEqual(a: string, b: string): boolean {
+  const ab = Buffer.from(a);
+  const bb = Buffer.from(b);
+  return ab.length === bb.length && timingSafeEqual(ab, bb);
+}
+
+/** Login per Username/Passwort ist nur aktiv, wenn ADMIN_TOKEN und ADMIN_PASSWORD gesetzt sind. */
+export function loginEnabled(): boolean {
+  return ADMIN_TOKEN.length > 0 && ADMIN_PASSWORD.length > 0;
+}
+
+/**
+ * Prüft Username + Passwort und gibt bei Erfolg den internen Admin-Token zurück
+ * (den das Frontend danach für die geschützten Admin-Routen verwendet), sonst null.
+ */
+export function verifyAdminLogin(username: string, password: string): string | null {
+  if (!loginEnabled()) return null;
+  return safeEqual(username, ADMIN_USER) && safeEqual(password, ADMIN_PASSWORD) ? ADMIN_TOKEN : null;
 }
 
 // ---- Nutzer-Verwaltung (Admin) -----------------------------------------
