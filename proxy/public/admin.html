@@ -8,8 +8,10 @@
       :root { --excel: #217346; --excel-dark: #185c37; --line: #d9d9d9; --muted: #666; --danger: #b3261e; }
       * { box-sizing: border-box; }
       body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; color: #242424; margin: 0; background: #f7f7f7; }
-      header { background: var(--excel-dark); color: #fff; padding: 16px 24px; }
+      header { background: var(--excel-dark); color: #fff; padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
       header h1 { margin: 0; font-size: 18px; }
+      header button { height: 32px; background: rgba(255,255,255,0.14); color: #fff; border: 1px solid rgba(255,255,255,0.55); }
+      header button:hover { background: rgba(255,255,255,0.24); }
       main { max-width: 920px; margin: 0 auto; padding: 24px; }
       .card { background: #fff; border: 1px solid var(--line); border-radius: 6px; padding: 16px; margin-bottom: 16px; }
       label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
@@ -36,7 +38,10 @@
     </style>
   </head>
   <body>
-    <header><h1>Gordon – Nutzer- &amp; Limit-Verwaltung</h1></header>
+    <header>
+      <h1>Gordon – Nutzer- &amp; Limit-Verwaltung</h1>
+      <button id="showAdminToken" class="hidden" type="button" title="Admin-Token anzeigen und kopieren">Admin-Token kopieren</button>
+    </header>
     <main>
       <div class="card" id="authCard">
         <label for="adminToken">Admin-Token</label>
@@ -111,6 +116,7 @@
           sessionStorage.setItem("gordon.adminToken", token);
           $("authCard").classList.add("hidden");
           $("app").classList.remove("hidden");
+          $("showAdminToken").classList.remove("hidden");
           refreshAll();
         } catch (err) {
           $("authStatus").textContent = err.message;
@@ -257,6 +263,14 @@
       function escapeHtml(s) {
         return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
       }
+
+      $("showAdminToken").onclick = () => {
+        if (!token) return;
+        navigator.clipboard.writeText(token).then(
+          () => alert("Admin-Token kopiert:\n\n" + token),
+          () => prompt("Admin-Token (manuell kopieren):", token)
+        );
+      };
 
       $("loginBtn").onclick = login;
       $("adminToken").addEventListener("keydown", (e) => e.key === "Enter" && login());

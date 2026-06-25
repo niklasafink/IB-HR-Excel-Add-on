@@ -351,10 +351,22 @@ function autofit(sheet: Excel.Worksheet): void {
   used.format.autofitRows();
 }
 
+/**
+ * Normalisiert eine eingegebene Proxy-Adresse: trimmt, entfernt End-Slashes und
+ * ergänzt fehlendes `https://`. Ohne Schema würde der Browser die URL als *relativ*
+ * zur Add-in-Seite auflösen (→ Health-Check schlägt fehl, „Proxy nicht erreichbar").
+ */
+function normalizeProxyUrl(raw: string): string {
+  let value = raw.trim().replace(/\/+$/, "");
+  if (!value) return value;
+  if (!/^https?:\/\//i.test(value)) value = `https://${value}`;
+  return value;
+}
+
 export function proxyBaseUrl(): string {
   try {
     const stored = localStorage.getItem(PROXY_KEY);
-    if (stored && stored.trim()) return stored.trim().replace(/\/+$/, "");
+    if (stored && stored.trim()) return normalizeProxyUrl(stored);
   } catch {
     /* localStorage steht evtl. nicht zur Verfügung. */
   }
@@ -362,7 +374,8 @@ export function proxyBaseUrl(): string {
 }
 
 export function setProxyBaseUrl(value: string): string {
-  const normalized = (value.trim() || DEFAULT_PROXY_BASE_URL).replace(/\/+$/, "");
+  const trimmed = value.trim();
+  const normalized = trimmed ? normalizeProxyUrl(trimmed) : DEFAULT_PROXY_BASE_URL.replace(/\/+$/, "");
   try {
     localStorage.setItem(PROXY_KEY, normalized);
   } catch {
