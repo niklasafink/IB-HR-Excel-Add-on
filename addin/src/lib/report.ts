@@ -22,6 +22,10 @@ export interface ReportOptions {
   yearFrom: number | null;
   yearTo: number | null;
   target: TargetMode;
+  /** KI-Suche aktivieren (genauere Treffer + Website, höhere Credits). */
+  aiSearch?: boolean;
+  /** Echtzeitdaten aus dem Handelsregister. */
+  realtime?: boolean;
 }
 
 export interface ReportSummary {
@@ -60,7 +64,7 @@ export async function generateReports(
   const sections: { company: string; model: ExcelModel; rows: number }[] = [];
   for (const company of companies) {
     try {
-      const raw = await fetchFeature(company, feature.key);
+      const raw = await fetchFeature(company, feature.key, { aiSearch: options.aiSearch, realtime: options.realtime });
       const filtered = applyYearFilter(feature.key, raw, options);
       const model = buildExcelModel(feature.key, filtered);
       const rows = model.tables.reduce((sum, table) => sum + table.rows.length, 0);
@@ -129,9 +133,23 @@ async function loadSheetNames(): Promise<Set<string>> {
   });
 }
 
-async function fetchFeature(query: string, featureKey: string): Promise<unknown> {
-  const url = `${proxyBaseUrl()}/organization?q=${encodeURIComponent(query)}&feature=${encodeURIComponent(featureKey)}`;
-  const res = await fetchWithTimeout(url);
+export interface FetchFlags {
+  /** KI-Suche: genauere Treffer + befüllt website_content/Homepage (höhere Credits). */
+  aiSearch?: boolean;
+  /** Echtzeitdaten direkt aus dem Handelsregister. */
+  realtime?: boolean;
+}
+
+function organizationUrl(query: string, features: string[], flags: FetchFlags): string {
+  const params = new URLSearchParams({ q: query });
+  for (const feature of features) params.append("feature", feature);
+  if (flags.aiSearch) params.set("ai_search", "true");
+  if (flags.realtime) params.set("realtime", "true");
+  return `${proxyBaseUrl()}/organization?${params.toString()}`;
+}
+
+async function fetchOrgRaw(query: string, features: string[], flags: FetchFlags): Promise<unknown> {
+  const res = await fetchWithTimeout(organizationUrl(query, features, flags));
   const body = await safeJson(res);
   if (!res.ok) {
     throw new Error(errorMessage(body) || `Proxy-Fehler (${res.status})`);
@@ -140,18 +158,36 @@ async function fetchFeature(query: string, featureKey: string): Promise<unknown>
 }
 
 /**
+ * Übersetzt einen Add-in-Feature-Key in die tatsächliche API-Anfrage.
+ * - `company_details`: kein Feature-Flag (Stammdaten kommen immer mit), aber
+ *   KI-Suche für Website/genauere Treffer.
+ * - `website_content` (KI) benötigt zwingend ai_search, sonst ist es leer.
+ */
+function featureRequest(featureKey: string, flags: FetchFlags): { features: string[]; flags: FetchFlags } {
+  if (featureKey === "company_details") {
+    return { features: ["website_content"], flags: { ...flags, aiSearch: true } };
+  }
+  if (featureKey === "website_content") {
+    return { features: ["website_content"], flags: { ...flags, aiSearch: true } };
+  }
+  return { features: [featureKey], flags };
+}
+
+async function fetchFeature(query: string, featureKey: string, flags: FetchFlags = {}): Promise<unknown> {
+  const req = featureRequest(featureKey, flags);
+  return fetchOrgRaw(query, req.features, req.flags);
+}
+
+/**
  * Ruft eine Organisation mit mehreren Features in einem Request ab und gibt die
  * rohe Proxy-Antwort zurück. Genutzt vom „Erkennen"-Workflow (lib/detect.ts).
  */
-export async function fetchOrganization(query: string, features: string[]): Promise<unknown> {
-  const params = new URLSearchParams({ q: query });
-  for (const feature of features) params.append("feature", feature);
-  const res = await fetchWithTimeout(`${proxyBaseUrl()}/organization?${params.toString()}`);
-  const body = await safeJson(res);
-  if (!res.ok) {
-    throw new Error(errorMessage(body) || `Proxy-Fehler (${res.status})`);
-  }
-  return body;
+export async function fetchOrganization(
+  query: string,
+  features: string[],
+  flags: FetchFlags = {}
+): Promise<unknown> {
+  return fetchOrgRaw(query, features, flags);
 }
 
 /** fetch mit Timeout (Standard 30s) – verhindert endlos hängende Anfragen. */

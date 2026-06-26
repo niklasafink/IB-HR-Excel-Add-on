@@ -295,6 +295,8 @@ function readOptions(): ReportOptions {
     yearFrom: parseYear(byId<HTMLInputElement>("yearFrom").value),
     yearTo: parseYear(byId<HTMLInputElement>("yearTo").value),
     target: byId<HTMLSelectElement>("targetMode").value as TargetMode,
+    aiSearch: byId<HTMLInputElement>("aiSearch").checked,
+    realtime: byId<HTMLInputElement>("realtime").checked,
   };
 }
 

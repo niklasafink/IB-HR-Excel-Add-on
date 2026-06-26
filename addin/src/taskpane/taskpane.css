@@ -202,6 +202,46 @@ h2 {
   gap: 8px;
 }
 
+.help-box {
+  padding: 10px 12px;
+  background: var(--white);
+  border-left: 3px solid var(--excel);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.help-box b {
+  color: var(--ink);
+}
+
+.help-box ol {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+
+.help-box li {
+  margin-bottom: 3px;
+}
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink);
+}
+
+.check input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
 .mapping-list {
   margin: 8px 0;
 }

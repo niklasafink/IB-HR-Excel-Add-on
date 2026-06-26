@@ -61,6 +61,8 @@
             <option value="combined">Ein kombiniertes Blatt</option>
           </select>
         </div>
+        <label class="check"><input type="checkbox" id="aiSearch" /> KI-Suche – genauere Treffer &amp; Website (mehr Credits)</label>
+        <label class="check"><input type="checkbox" id="realtime" /> Echtzeitdaten aus dem Handelsregister</label>
       </section>
 
       <section class="block">
@@ -83,11 +85,23 @@
 
       <div id="detectView" class="hidden">
         <section class="block">
+          <div class="help-box">
+            <b>So funktioniert's</b>
+            <ol>
+              <li>Markiere in Excel deine Tabelle <b>inkl. Überschriftenzeile</b> (z. B. Spalte A = Firmennamen).</li>
+              <li>Klicke <b>„Auswahl neu lesen"</b> – die Spalten werden automatisch erkannt.</li>
+              <li>Prüfe die <b>Spaltenzuordnung</b> und passe sie bei Bedarf an.</li>
+              <li>Klicke <b>„Daten füllen"</b>.</li>
+            </ol>
+          </div>
+        </section>
+
+        <section class="block">
           <div class="block-head">
             <label>Tabelle</label>
             <button id="detectRescan" class="link-btn" type="button">Auswahl neu lesen</button>
           </div>
-          <div id="detectRange" class="muted-line">Markiere deine Tabelle (mit Kopfzeile) und klicke „Auswahl neu lesen".</div>
+          <div id="detectRange" class="muted-line">Noch keine Tabelle gelesen – markiere deine Tabelle (mit Kopfzeile) und klicke „Auswahl neu lesen".</div>
         </section>
 
         <section class="block">

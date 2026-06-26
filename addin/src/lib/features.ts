@@ -2,13 +2,21 @@ export interface ApiFeature {
   key: string;
   label: string;
   shortLabel: string;
-  group: "Finance" | "People" | "Publications" | "Ownership" | "AI";
+  group: "Übersicht" | "Finance" | "People" | "Publications" | "Ownership" | "AI";
   credits: string;
   beta?: boolean;
   description: string;
 }
 
 export const API_FEATURES: ApiFeature[] = [
+  {
+    key: "company_details",
+    label: "Unternehmensdaten",
+    shortLabel: "Details",
+    group: "Übersicht",
+    credits: "5–25",
+    description: "Stammdaten: Adresse, Kontakt, Website, Unternehmensgegenstand, Branche und Register.",
+  },
   {
     key: "financial_kpi",
     label: "Finanzkennzahlen",

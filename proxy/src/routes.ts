@@ -227,9 +227,18 @@ function searchOrganizationsPath(query: string, limit = 10, filters?: unknown): 
   return `/v1/search-organizations?${params.toString()}`;
 }
 
-function fetchOrganizationPath(query: string, features: string[] = []): string {
+interface FetchOptions {
+  /** KI-Suche aktivieren (genauere Treffer + website_content). */
+  aiSearch?: boolean;
+  /** Echtzeitdaten direkt aus dem Handelsregister. */
+  realtime?: boolean;
+}
+
+function fetchOrganizationPath(query: string, features: string[] = [], opts: FetchOptions = {}): string {
   const params = new URLSearchParams({ q: query });
   for (const feature of features) params.append("feature", feature);
+  if (opts.aiSearch) params.set("ai_search", "on-default");
+  if (opts.realtime) params.set("realtime_mode", "handelsregister-default");
   return `/v1/fetch-organization?${params.toString()}`;
 }
 
@@ -540,14 +549,15 @@ router.get("/lookup", (req, res) => {
 
 // ---- Firma --------------------------------------------------------------
 
-// GET /api/organization?q=<NAME>&feature=<FEATURE>[&feature=<FEATURE>...]
+// GET /api/organization?q=<NAME>&feature=<FEATURE>[&feature=...][&ai_search][&realtime]
 router.get("/organization", (req, res) => {
   const query = q(req, "q");
   const rawFeatures = req.query.feature;
   const features = (Array.isArray(rawFeatures) ? rawFeatures : rawFeatures ? [rawFeatures] : [])
     .map((feature) => String(feature).trim())
     .filter(Boolean);
-  requireValue(res, "q", query, (value) => fetchOrganizationResolved(value, features));
+  const opts: FetchOptions = { aiSearch: boolQ(req, "ai_search"), realtime: boolQ(req, "realtime") };
+  requireValue(res, "q", query, (value) => fetchOrganizationResolved(value, features, opts));
 });
 
 /**
@@ -555,14 +565,18 @@ router.get("/organization", (req, res) => {
  * der Name ungenau ist wie „OroraTech" statt „OroraTech GmbH"), wird einmalig
  * über die Such-API der beste Treffer ermittelt und erneut versucht.
  */
-async function fetchOrganizationResolved(query: string, features: string[]): Promise<unknown> {
+async function fetchOrganizationResolved(
+  query: string,
+  features: string[],
+  opts: FetchOptions = {}
+): Promise<unknown> {
   try {
-    return await proxyGet(fetchOrganizationPath(query, features));
+    return await proxyGet(fetchOrganizationPath(query, features, opts));
   } catch (err) {
     if (!(err instanceof UpstreamError) || err.status !== 404) throw err;
     const resolved = await resolveBestName(query);
     if (!resolved || resolved.toLowerCase() === query.toLowerCase()) throw err;
-    return proxyGet(fetchOrganizationPath(resolved, features));
+    return proxyGet(fetchOrganizationPath(resolved, features, opts));
   }
 }
 

@@ -175,7 +175,7 @@ export async function fillTable(
       continue;
     }
     try {
-      const data = await fetchOrganization(company, FEATURES);
+      const data = await fetchOrganization(company, FEATURES, { aiSearch: true });
       results.push(extractRow(data));
     } catch (err) {
       results.push(null);
@@ -406,7 +406,32 @@ async function writeResults(table: TableInfo, mapping: Mapping, results: (RowRes
       if (fmt) dataRange.numberFormat = results.map(() => [fmt]);
     }
 
-    sheet.getUsedRangeOrNullObject().format.autofitColumns();
+    // Beschreibungs-Spalte ermitteln, um sie vom Breiten-Autofit auszunehmen.
+    let descCol: number | null = null;
+    if (mapping.description !== NONE) {
+      descCol =
+        mapping.description === NEW_COLUMN
+          ? newColAssignments.get("description") ?? null
+          : table.startCol + mapping.description;
+    }
+
+    const used = sheet.getUsedRangeOrNullObject();
+    let descRange: Excel.Range | null = null;
+    if (descCol !== null) {
+      // Inkl. Kopfzeile, Breite vor dem Autofit merken.
+      descRange = sheet.getRangeByIndexes(table.dataStartRow - 1, descCol, results.length + 1, 1);
+      descRange.format.load("columnWidth");
+    }
+    await context.sync();
+
+    const keepWidth = descRange ? descRange.format.columnWidth : 0;
+    used.format.autofitColumns();
+    if (descRange) {
+      // Breite beibehalten (kein Aufblähen) + Zeilenumbruch aktivieren.
+      descRange.format.wrapText = true;
+      descRange.format.columnWidth = keepWidth;
+    }
+    used.format.autofitRows();
     await context.sync();
   });
 }

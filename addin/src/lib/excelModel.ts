@@ -80,6 +80,8 @@ export function buildExcelModel(featureKey: string, response: unknown): ExcelMod
   const value = resolveFeatureValue(root, featureKey, response);
 
   switch (featureKey) {
+    case "company_details":
+      return model(feature.shortLabel, [companyProfileTable(root)]);
     case "financial_kpi":
       return model(feature.shortLabel, [arrayTable("Finanzkennzahlen", kpiRows(value))]);
     case "balance_sheet_accounts":
