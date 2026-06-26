@@ -15,6 +15,19 @@ import {
   type ReportSummary,
   type TargetMode,
 } from "../lib/report";
+import {
+  readTable,
+  detectMapping,
+  fillTable,
+  columnLetter,
+  TARGETS,
+  NONE,
+  NEW_COLUMN,
+  type Mapping,
+  type TableInfo,
+  type TargetDef,
+  type TargetKey,
+} from "../lib/detect";
 
 interface CompanyEntry {
   name: string;
@@ -27,15 +40,22 @@ Office.onReady((info) => {
   if (info.host !== Office.HostType.Excel) return;
   byId("app").classList.remove("hidden");
 
-  renderFeatureSelect();
-  applyFeatureFromUrl();
-  renderYearQuick();
   byId<HTMLInputElement>("proxyUrl").value = proxyBaseUrl();
   byId<HTMLInputElement>("userToken").value = userToken();
-  bindEvents();
-  void refreshCompanies();
+  bindSettingsEvents();
   void testConnection(false);
   void refreshCredits();
+
+  const mode = new URLSearchParams(window.location.search).get("mode");
+  if (mode === "detect") {
+    initDetectView();
+  } else {
+    renderFeatureSelect();
+    applyFeatureFromUrl();
+    renderYearQuick();
+    bindEvents();
+    void refreshCompanies();
+  }
 });
 
 function byId<T extends HTMLElement = HTMLElement>(id: string): T {
@@ -58,6 +78,10 @@ function bindEvents(): void {
   for (const id of ["yearFrom", "yearTo"]) {
     byId<HTMLInputElement>(id).addEventListener("input", () => setActiveChip(null));
   }
+}
+
+/** Proxy/Token/Test – in beiden Modi (Report & Erkennen) verfügbar. */
+function bindSettingsEvents(): void {
   byId("testConn").addEventListener("click", () => void testConnection(true));
   byId<HTMLInputElement>("proxyUrl").addEventListener("change", () => {
     const normalized = setProxyBaseUrl(byId<HTMLInputElement>("proxyUrl").value);
@@ -305,6 +329,102 @@ function setStatus(message: string, kind: "" | "ok" | "err" = ""): void {
 
 function setHealth(ok: boolean): void {
   byId("healthDot").className = `health-dot ${ok ? "ok" : "err"}`;
+}
+
+// ---- Erkennen-Modus (Spaltenzuordnung) ----------------------------------
+
+let detectTable: TableInfo | null = null;
+let detectMappingState: Mapping | null = null;
+
+function initDetectView(): void {
+  byId("reportView").classList.add("hidden");
+  byId("detectView").classList.remove("hidden");
+  byId("detectRescan").addEventListener("click", () => void rescanTable());
+  byId("fillData").addEventListener("click", () => void runFill());
+  void rescanTable();
+}
+
+async function rescanTable(): Promise<void> {
+  setDetectStatus("lese Auswahl …");
+  try {
+    detectTable = await readTable();
+    detectMappingState = detectMapping(detectTable.headers);
+    byId("detectRange").textContent =
+      `Tabelle ${detectTable.address} · ${detectTable.rowCount} Firmen, ${detectTable.colCount} Spalten`;
+    renderMapping();
+    setDetectStatus("");
+  } catch (err) {
+    detectTable = null;
+    detectMappingState = null;
+    byId("mappingList").innerHTML = "";
+    byId("detectRange").textContent = "";
+    setDetectStatus((err as Error).message, "err");
+  }
+}
+
+function renderMapping(): void {
+  if (!detectTable || !detectMappingState) return;
+  const table = detectTable;
+  const mapping = detectMappingState;
+
+  byId("mappingList").innerHTML = TARGETS.map(
+    (target) => `
+      <div class="mapping-row">
+        <span class="mapping-label">${escapeHtml(target.label)}</span>
+        <select data-target="${target.key}">${mappingOptions(target, table, mapping[target.key])}</select>
+      </div>`
+  ).join("");
+
+  byId("mappingList")
+    .querySelectorAll<HTMLSelectElement>("select[data-target]")
+    .forEach((select) => {
+      select.addEventListener("change", () => {
+        const key = select.dataset.target as TargetKey;
+        if (detectMappingState) detectMappingState[key] = Number(select.value);
+      });
+    });
+}
+
+function mappingOptions(target: TargetDef, table: TableInfo, current: number): string {
+  const options: string[] = [];
+  const sel = (value: number): string => (value === current ? " selected" : "");
+  if (target.output) options.push(`<option value="${NONE}"${sel(NONE)}>— nicht schreiben</option>`);
+  for (let i = 0; i < table.colCount; i++) {
+    const label = `${columnLetter(table.startCol + i)}: ${table.headers[i] || "(leer)"}`;
+    options.push(`<option value="${i}"${sel(i)}>${escapeHtml(label)}</option>`);
+  }
+  if (target.output) options.push(`<option value="${NEW_COLUMN}"${sel(NEW_COLUMN)}>+ neue Spalte rechts</option>`);
+  return options.join("");
+}
+
+async function runFill(): Promise<void> {
+  if (!detectTable || !detectMappingState) {
+    setDetectStatus("Bitte zuerst eine Tabelle einlesen.", "err");
+    return;
+  }
+  const button = byId<HTMLButtonElement>("fillData");
+  button.disabled = true;
+  setDetectStatus("starte …");
+  try {
+    const summary = await fillTable(detectTable, detectMappingState, (p) => {
+      setDetectStatus(`Firma ${p.done}/${p.total}: ${p.company} …`);
+    });
+    const failed = summary.failed.length
+      ? ` ${summary.failed.length} fehlgeschlagen: ${summary.failed.map((f) => f.company).join(", ")}`
+      : "";
+    setDetectStatus(`${summary.filled} Zeile(n) gefüllt.${failed}`, summary.filled ? "ok" : "err");
+  } catch (err) {
+    setDetectStatus((err as Error).message, "err");
+  } finally {
+    button.disabled = false;
+    void refreshCredits();
+  }
+}
+
+function setDetectStatus(message: string, kind: "" | "ok" | "err" = ""): void {
+  const el = byId("detectStatus");
+  el.textContent = message;
+  el.className = `status ${kind}`;
 }
 
 function escapeHtml(value: string): string {

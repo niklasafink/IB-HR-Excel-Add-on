@@ -20,6 +20,7 @@
         </div>
       </header>
 
+      <div id="reportView">
       <section class="feature-panel">
         <label for="featureSelect">Feature</label>
         <select id="featureSelect"></select>
@@ -78,6 +79,28 @@
         <input id="userToken" type="password" placeholder="vom Administrator erhalten" />
         <p class="muted-line">Nur bei der Ersteinrichtung nötig.</p>
       </details>
+      </div>
+
+      <div id="detectView" class="hidden">
+        <section class="block">
+          <div class="block-head">
+            <label>Tabelle</label>
+            <button id="detectRescan" class="link-btn" type="button">Auswahl neu lesen</button>
+          </div>
+          <div id="detectRange" class="muted-line">Markiere deine Tabelle (mit Kopfzeile) und klicke „Auswahl neu lesen".</div>
+        </section>
+
+        <section class="block">
+          <label>Spaltenzuordnung</label>
+          <div id="mappingList" class="mapping-list"></div>
+          <p class="muted-line">Input = Spalte mit den Firmennamen. Ausgabefelder schreiben in die gewählte (oder neue) Spalte.</p>
+        </section>
+
+        <section class="block">
+          <button id="fillData" class="primary" type="button">Daten füllen</button>
+          <div id="detectStatus" class="status"></div>
+        </section>
+      </div>
     </main>
   </body>
 </html>

@@ -202,6 +202,30 @@ h2 {
   gap: 8px;
 }
 
+.mapping-list {
+  margin: 8px 0;
+}
+
+.mapping-row {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.mapping-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.mapping-row select {
+  height: 30px;
+}
+
 .field-inline {
   display: grid;
   grid-template-columns: 1fr 1fr;

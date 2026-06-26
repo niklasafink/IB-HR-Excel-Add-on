@@ -50,6 +50,17 @@
 
           <ExtensionPoint xsi:type="PrimaryCommandSurface">
             <CustomTab id="GordanV2.Tab">
+              <Group id="GordanV2.Table">
+                <Label resid="Group.Table" />
+                <Icon><bt:Image size="16" resid="Icon.16" /><bt:Image size="32" resid="Icon.32" /><bt:Image size="80" resid="Icon.80" /></Icon>
+                <Control xsi:type="Button" id="GV2.Detect">
+                  <Label resid="Btn.Detect" />
+                  <Supertip><Title resid="Btn.Detect" /><Description resid="Tip.Detect" /></Supertip>
+                  <Icon><bt:Image size="16" resid="Icon.16" /><bt:Image size="32" resid="Icon.32" /><bt:Image size="80" resid="Icon.80" /></Icon>
+                  <Action xsi:type="ShowTaskpane"><TaskpaneId>GordanV2.Api</TaskpaneId><SourceLocation resid="Url.Detect" /></Action>
+                </Control>
+              </Group>
+
               <Group id="GordanV2.Finance">
                 <Label resid="Group.Finance" />
                 <Icon>
@@ -207,6 +218,7 @@
       <bt:Urls>
         <bt:Url id="Commands.Url" DefaultValue="https://localhost:3000/commands.html" />
         <bt:Url id="Taskpane.Url" DefaultValue="https://localhost:3000/taskpane.html" />
+        <bt:Url id="Url.Detect" DefaultValue="https://localhost:3000/taskpane.html?mode=detect" />
         <bt:Url id="Url.F1" DefaultValue="https://localhost:3000/taskpane.html?feature=financial_kpi" />
         <bt:Url id="Url.F2" DefaultValue="https://localhost:3000/taskpane.html?feature=balance_sheet_accounts" />
         <bt:Url id="Url.F3" DefaultValue="https://localhost:3000/taskpane.html?feature=profit_and_loss_account" />
@@ -222,6 +234,8 @@
       </bt:Urls>
       <bt:ShortStrings>
         <bt:String id="Tab.Label" DefaultValue="Gordon" />
+        <bt:String id="Group.Table" DefaultValue="Tabelle" />
+        <bt:String id="Btn.Detect" DefaultValue="Erkennen" />
         <bt:String id="Group.Finance" DefaultValue="Financials" />
         <bt:String id="Group.People" DefaultValue="People" />
         <bt:String id="Group.Publications" DefaultValue="Publications" />
@@ -243,6 +257,7 @@
         <bt:String id="GetStarted.Title" DefaultValue="Gordon" />
       </bt:ShortStrings>
       <bt:LongStrings>
+        <bt:String id="Tip.Detect" DefaultValue="Tabelle markieren: erkennt die Spalten und füllt Firmenname, Revenue, EBITDA, Beschreibung und Homepage." />
         <bt:String id="Tip.F1" DefaultValue="financial_kpi · 1 Credit — jährliche Finanzkennzahlen abrufen." />
         <bt:String id="Tip.F2" DefaultValue="balance_sheet_accounts · 3 Credits — hierarchische Bilanzdaten abrufen." />
         <bt:String id="Tip.F3" DefaultValue="profit_and_loss_account · 3 Credits — GuV-Aufstellungen abrufen." />

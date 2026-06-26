@@ -139,6 +139,21 @@ async function fetchFeature(query: string, featureKey: string): Promise<unknown>
   return body;
 }
 
+/**
+ * Ruft eine Organisation mit mehreren Features in einem Request ab und gibt die
+ * rohe Proxy-Antwort zurück. Genutzt vom „Erkennen"-Workflow (lib/detect.ts).
+ */
+export async function fetchOrganization(query: string, features: string[]): Promise<unknown> {
+  const params = new URLSearchParams({ q: query });
+  for (const feature of features) params.append("feature", feature);
+  const res = await fetchWithTimeout(`${proxyBaseUrl()}/organization?${params.toString()}`);
+  const body = await safeJson(res);
+  if (!res.ok) {
+    throw new Error(errorMessage(body) || `Proxy-Fehler (${res.status})`);
+  }
+  return body;
+}
+
 /** fetch mit Timeout (Standard 30s) – verhindert endlos hängende Anfragen. */
 async function fetchWithTimeout(url: string, timeoutMs = 30000): Promise<Response> {
   const controller = new AbortController();
