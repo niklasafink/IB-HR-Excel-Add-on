@@ -60,7 +60,15 @@ module.exports = async (env, options) => {
             to: "manifest.xml",
             transform(content) {
               // Dev-URLs durch die produktive Auslieferungs-Domain ersetzen.
-              return content.toString().replaceAll("https://localhost:3000", ADDIN_BASE_URL);
+              let xml = content.toString().replaceAll("https://localhost:3000", ADDIN_BASE_URL);
+              // Cloudflare Pages liefert "clean URLs": ein Request auf /x.html wird per
+              // 308 auf /x umgeleitet. Office lädt eine umgeleitete SourceLocation NICHT
+              // (Add-in erscheint als "nicht verfügbar"). Im Remote-Build daher die
+              // HTML-Seiten extensionslos referenzieren (lokal bleibt .html für den Dev-Server).
+              if (!ADDIN_BASE_URL.includes("localhost")) {
+                xml = xml.replaceAll("/taskpane.html", "/taskpane").replaceAll("/commands.html", "/commands");
+              }
+              return xml;
             },
           },
         ],
