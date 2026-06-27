@@ -499,18 +499,27 @@ function documentTables(featureKey: string, value: unknown): ExcelTable[] {
  * (Markdown) vorhanden ist, wird er als zweite Tabelle angehängt.
  */
 function websiteTables(root: JsonRecord): ExcelTable[] {
-  // Nur der Website-Inhalt – KEINE Stammdaten (die hat der „Details"-Button).
+  const tables: ExcelTable[] = [];
+
+  // Enthält die Antwort Stammdaten, zuerst das Unternehmensprofil aufbauen.
+  const hasOrgData = Array.from(ORG_BASE_KEYS).some((key) => root[key] !== undefined && root[key] !== null);
+  if (hasOrgData) tables.push(companyProfileTable(root));
+
+  // Echten Website-Inhalt als zweite Tabelle anhängen, sofern vorhanden.
   const content = websiteContentText(root.website_content).trim();
-  if (!content) {
-    return [
-      {
-        title: "Website-Inhalt",
-        headers: ["Hinweis"],
-        rows: [["Kein Website-Inhalt verfügbar – KI-Suche aktiv? Ggf. hat das Unternehmen keine erkannte Website."]],
-      },
-    ];
+  if (content) {
+    tables.push({ title: "Website-Inhalt", headers: ["Inhalt"], rows: contentLines(content).map((line) => [line]) });
   }
-  return [{ title: "Website-Inhalt", headers: ["Inhalt"], rows: contentLines(content).map((line) => [line]) }];
+
+  if (tables.length) return tables;
+
+  return [
+    {
+      title: "Website-Inhalt",
+      headers: ["Hinweis"],
+      rows: [["Kein Website-Inhalt verfügbar – KI-Suche aktiv? Ggf. hat das Unternehmen keine erkannte Website."]],
+    },
+  ];
 }
 
 /** Extrahiert den Website-Text – egal ob String, Array oder Objekt. */
