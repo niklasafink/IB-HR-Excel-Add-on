@@ -138,7 +138,7 @@ function applyYearVisibility(feature: ApiFeature): void {
 /** Buttons für die letzten 3 Jahre + Spanne, statt Jahreszahlen zu tippen. */
 function renderYearQuick(): void {
   const current = new Date().getFullYear();
-  const years = [current - 1, current - 2, current - 3];
+  const years = [current - 3, current - 2, current - 1];
   const chips = years.map(
     (year) => `<button type="button" class="year-chip" data-from="${year}" data-to="${year}">${year}</button>`
   );
@@ -291,9 +291,15 @@ async function runGenerate(): Promise<void> {
 }
 
 function readOptions(): ReportOptions {
+  let yearFrom = parseYear(byId<HTMLInputElement>("yearFrom").value);
+  let yearTo = parseYear(byId<HTMLInputElement>("yearTo").value);
+  // Versehentlich vertauscht (von > bis)? Automatisch korrigieren, statt leeres Ergebnis.
+  if (yearFrom !== null && yearTo !== null && yearFrom > yearTo) {
+    [yearFrom, yearTo] = [yearTo, yearFrom];
+  }
   return {
-    yearFrom: parseYear(byId<HTMLInputElement>("yearFrom").value),
-    yearTo: parseYear(byId<HTMLInputElement>("yearTo").value),
+    yearFrom,
+    yearTo,
     target: byId<HTMLSelectElement>("targetMode").value as TargetMode,
     aiSearch: byId<HTMLInputElement>("aiSearch").checked,
     realtime: byId<HTMLInputElement>("realtime").checked,

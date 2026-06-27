@@ -427,11 +427,12 @@ async function writeResults(table: TableInfo, mapping: Mapping, results: (RowRes
     const keepWidth = descRange ? descRange.format.columnWidth : 0;
     used.format.autofitColumns();
     if (descRange) {
-      // Breite beibehalten (kein Aufblähen) + Zeilenumbruch aktivieren.
-      descRange.format.wrapText = true;
+      // Beschreibung soll das Layout nicht verändern: Breite beibehalten
+      // (kein Aufblähen durch Autofit) und keinen Zeilenumbruch aktivieren,
+      // damit auch die Zeilenhöhe unverändert bleibt.
+      descRange.format.wrapText = false;
       descRange.format.columnWidth = keepWidth;
     }
-    used.format.autofitRows();
     await context.sync();
   });
 }

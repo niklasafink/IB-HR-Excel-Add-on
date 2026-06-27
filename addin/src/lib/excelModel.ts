@@ -499,12 +499,26 @@ function documentTables(featureKey: string, value: unknown): ExcelTable[] {
  * (Markdown) vorhanden ist, wird er als zweite Tabelle angehängt.
  */
 function websiteTables(root: JsonRecord): ExcelTable[] {
-  const tables: ExcelTable[] = [companyProfileTable(root)];
-  const content = typeof root.website_content === "string" ? root.website_content : "";
-  if (content.trim()) {
-    tables.push({ title: "Website-Inhalt", headers: ["Inhalt"], rows: contentLines(content).map((line) => [line]) });
+  // Nur der Website-Inhalt – KEINE Stammdaten (die hat der „Details"-Button).
+  const content = websiteContentText(root.website_content).trim();
+  if (!content) {
+    return [
+      {
+        title: "Website-Inhalt",
+        headers: ["Hinweis"],
+        rows: [["Kein Website-Inhalt verfügbar – KI-Suche aktiv? Ggf. hat das Unternehmen keine erkannte Website."]],
+      },
+    ];
   }
-  return tables;
+  return [{ title: "Website-Inhalt", headers: ["Inhalt"], rows: contentLines(content).map((line) => [line]) }];
+}
+
+/** Extrahiert den Website-Text – egal ob String, Array oder Objekt. */
+function websiteContentText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map((item) => (typeof item === "string" ? item : "")).join("\n");
+  const r = asRecord(value);
+  return profileText(r.content ?? r.markdown ?? r.text ?? r.summary ?? r.body);
 }
 
 /** Kuratiertes Unternehmensprofil (Feld/Wert) mit verständlichen Bezeichnungen. */
