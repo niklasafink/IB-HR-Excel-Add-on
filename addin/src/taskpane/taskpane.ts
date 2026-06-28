@@ -29,6 +29,9 @@ import {
   type TargetKey,
 } from "../lib/detect";
 
+// Beim Build via webpack DefinePlugin aus der manifest.xml injiziert.
+declare const process: { env: { APP_VERSION?: string } };
+
 interface CompanyEntry {
   name: string;
   checked: boolean;
@@ -42,6 +45,7 @@ Office.onReady((info) => {
 
   byId<HTMLInputElement>("proxyUrl").value = proxyBaseUrl();
   byId<HTMLInputElement>("userToken").value = userToken();
+  byId("appVersion").textContent = process.env.APP_VERSION || "unbekannt";
   bindSettingsEvents();
   void testConnection(false);
   void refreshCredits();

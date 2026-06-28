@@ -1,8 +1,17 @@
 /* eslint-disable no-undef */
 const path = require("path");
+const fs = require("fs");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 const webpack = require("webpack");
+
+// Version aus dem Manifest lesen, damit das Task-Pane sie anzeigen kann
+// (eine einzige Quelle der Wahrheit -> kein Auseinanderlaufen).
+const APP_VERSION = (() => {
+  const xml = fs.readFileSync(path.resolve(__dirname, "manifest.xml"), "utf8");
+  const match = xml.match(/<Version>([^<]+)<\/Version>/);
+  return match ? match[1] : "unbekannt";
+})();
 
 const PROXY_BASE_URL = process.env.PROXY_BASE_URL || "https://localhost:3001/api";
 // Basis-URL, unter der das Add-in-Bundle ausgeliefert wird (Cloudflare-Pages-Domain).
@@ -39,6 +48,7 @@ module.exports = async (env, options) => {
     plugins: [
       new webpack.DefinePlugin({
         "process.env.PROXY_BASE_URL": JSON.stringify(PROXY_BASE_URL),
+        "process.env.APP_VERSION": JSON.stringify(APP_VERSION),
       }),
       new HtmlWebpackPlugin({
         filename: "taskpane.html",
