@@ -406,7 +406,10 @@ async function writeResults(table: TableInfo, mapping: Mapping, results: (RowRes
       if (fmt) dataRange.numberFormat = results.map(() => [fmt]);
     }
 
-    // Beschreibungs-Spalte ermitteln, um sie vom Breiten-Autofit auszunehmen.
+    // Spaltenbreite bewusst NICHT anpassen (kein autofitColumns) – die vom
+    // Nutzer eingestellten Breiten bleiben beim Erkennen unverändert.
+    // Nur für die Beschreibungs-Spalte den Zeilenumbruch deaktivieren, damit
+    // langer Text das Layout (Zeilenhöhe) nicht aufbläht.
     let descCol: number | null = null;
     if (mapping.description !== NONE) {
       descCol =
@@ -414,24 +417,9 @@ async function writeResults(table: TableInfo, mapping: Mapping, results: (RowRes
           ? newColAssignments.get("description") ?? null
           : table.startCol + mapping.description;
     }
-
-    const used = sheet.getUsedRangeOrNullObject();
-    let descRange: Excel.Range | null = null;
     if (descCol !== null) {
-      // Inkl. Kopfzeile, Breite vor dem Autofit merken.
-      descRange = sheet.getRangeByIndexes(table.dataStartRow - 1, descCol, results.length + 1, 1);
-      descRange.format.load("columnWidth");
-    }
-    await context.sync();
-
-    const keepWidth = descRange ? descRange.format.columnWidth : 0;
-    used.format.autofitColumns();
-    if (descRange) {
-      // Beschreibung soll das Layout nicht verändern: Breite beibehalten
-      // (kein Aufblähen durch Autofit) und keinen Zeilenumbruch aktivieren,
-      // damit auch die Zeilenhöhe unverändert bleibt.
+      const descRange = sheet.getRangeByIndexes(table.dataStartRow - 1, descCol, results.length + 1, 1);
       descRange.format.wrapText = false;
-      descRange.format.columnWidth = keepWidth;
     }
     await context.sync();
   });

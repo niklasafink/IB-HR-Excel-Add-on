@@ -15,7 +15,7 @@
       body { font-family: -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--ink); margin: 0; background: var(--bg); }
       .brand { font-size: 17px; font-weight: 700; letter-spacing: -.01em; }
       .brand span { color: var(--brand); font-weight: 600; }
-      .hidden { display: none; }
+      .hidden { display: none !important; }
 
       /* Buttons */
       .btn { height: 34px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--line);
@@ -84,7 +84,7 @@
         <input id="username" type="text" autocomplete="username" autofocus />
         <label for="password">Passwort</label>
         <input id="password" type="password" autocomplete="current-password" />
-        <button class="btn primary block" type="submit" style="margin-top:20px">Anmelden</button>
+        <button class="btn primary block" id="loginBtn" type="submit" style="margin-top:20px">Anmelden</button>
         <p class="err" id="authStatus"></p>
       </form>
     </div>
@@ -143,7 +143,12 @@
       }
 
       async function api(path, options = {}) {
-        const res = await fetch(`/api/admin${path}`, { ...options, headers: { ...headers(), ...(options.headers || {}) } });
+        let res;
+        try {
+          res = await fetch(`/api/admin${path}`, { ...options, headers: { ...headers(), ...(options.headers || {}) } });
+        } catch (e) {
+          throw new Error("Netzwerkfehler: " + (e && e.message ? e.message : e));
+        }
         const body = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(body.error || `Fehler ${res.status}`);
         return body;
@@ -156,14 +161,14 @@
       async function login() {
         const username = $("username").value.trim();
         const password = $("password").value;
-        $("authStatus").textContent = "";
+        $("authStatus").textContent = "Anmeldung läuft …";
         try {
           const { token: t } = await api("/login", { method: "POST", body: JSON.stringify({ username, password }) });
           token = t;
           sessionStorage.setItem("gordon.adminToken", token);
           enterApp();
         } catch (err) {
-          $("authStatus").textContent = err.message;
+          $("authStatus").textContent = err.message || "Unbekannter Fehler";
         }
       }
 

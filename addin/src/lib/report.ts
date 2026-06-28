@@ -397,8 +397,9 @@ function applyColumnFormats(sheet: Excel.Worksheet, table: ExcelTable, dataRow: 
 }
 
 function autofit(sheet: Excel.Worksheet): void {
+  // Spaltenbreite bewusst NICHT anpassen – die vom Nutzer eingestellten
+  // Breiten sollen beim Generieren von Daten unverändert bleiben.
   const used = sheet.getUsedRangeOrNullObject();
-  used.format.autofitColumns();
   used.format.autofitRows();
 }
 
