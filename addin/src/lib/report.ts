@@ -149,7 +149,10 @@ function organizationUrl(query: string, features: string[], flags: FetchFlags): 
 }
 
 async function fetchOrgRaw(query: string, features: string[], flags: FetchFlags): Promise<unknown> {
-  const res = await fetchWithTimeout(organizationUrl(query, features, flags));
+  // KI-Suche (Website-Scraping + Auswertung) dauert beim Upstream deutlich
+  // länger – dafür großzügigeres Timeout, ansonsten Standard.
+  const timeoutMs = flags.aiSearch ? 120000 : 30000;
+  const res = await fetchWithTimeout(organizationUrl(query, features, flags), timeoutMs);
   const body = await safeJson(res);
   if (!res.ok) {
     throw new Error(errorMessage(body) || `Proxy-Fehler (${res.status})`);
@@ -190,18 +193,35 @@ export async function fetchOrganization(
   return fetchOrgRaw(query, features, flags);
 }
 
-/** fetch mit Timeout (Standard 30s) – verhindert endlos hängende Anfragen. */
+/**
+ * fetch mit Timeout (Standard 30s) – verhindert endlos hängende Anfragen.
+ *
+ * WICHTIG: Kein AbortController/`signal`. Die Office-WebView auf dem Mac
+ * (WKWebView) lässt jeden fetch mit angehängtem `signal` mit „Load failed“
+ * fehlschlagen, selbst wenn der Server normal antwortet. Deshalb wird das
+ * Timeout über `Promise.race` realisiert (der fetch läuft im Hintergrund aus).
+ */
 async function fetchWithTimeout(url: string, timeoutMs = 30000): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
   const headers: Record<string, string> = { Accept: "application/json" };
   const token = userToken();
   if (token) headers.Authorization = `Bearer ${token}`;
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`Zeitüberschreitung nach ${Math.round(timeoutMs / 1000)}s – die Abfrage hat zu lange gedauert.`)),
+      timeoutMs
+    );
+  });
+
   try {
-    return await fetch(url, { headers, signal: controller.signal });
+    return await Promise.race([fetch(url, { headers }), timeout]);
   } catch (err) {
-    if ((err as Error).name === "AbortError") {
-      throw new Error(`Zeitüberschreitung nach ${Math.round(timeoutMs / 1000)}s – Server nicht erreichbar?`);
+    const e = err as Error;
+    // Office-WebView (Mac/WebKit) meldet fehlgeschlagene Requests häufig nur als
+    // generisches „Load failed“ – verständlicher machen.
+    if (/load failed|failed to fetch|networkerror/i.test(e.message)) {
+      throw new Error("Verbindung fehlgeschlagen (Netzwerkfehler oder Timeout). Proxy-Adresse prüfen und erneut versuchen.");
     }
     throw err;
   } finally {

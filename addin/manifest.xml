@@ -285,7 +285,7 @@
         <bt:String id="Tip.F12" DefaultValue="shareholdings · Beta · 5 Credits — Beteiligungen abrufen." />
         <bt:String id="Tip.F13" DefaultValue="website_content · AI · 0 Credits — Website-Inhalte als Markdown abrufen." />
         <bt:String id="Tip.Email" DefaultValue="Support kontaktieren (niklas@gordonsregister.com) – öffnet dein Standard-Mailprogramm." />
-        <bt:String id="GetStarted.Description" DefaultValue="Wähle im Ribbon ein API-Feature, gib ein Unternehmen ein und sende den Request an handelsregister.ai." />
+        <bt:String id="GetStarted.Description" DefaultValue="Unternehmensdaten auf Knopfdruck – direkt in Excel." />
       </bt:LongStrings>
     </Resources>
   </VersionOverrides>
