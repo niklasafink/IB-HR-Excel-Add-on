@@ -422,7 +422,7 @@ async function runFill(): Promise<void> {
       setDetectStatus(`Firma ${p.done}/${p.total}: ${p.company} …`);
     });
     const failed = summary.failed.length
-      ? ` ${summary.failed.length} fehlgeschlagen: ${summary.failed.map((f) => f.company).join(", ")}`
+      ? ` ${summary.failed.length} fehlgeschlagen (${summary.failed[0].company}: ${summary.failed[0].error})`
       : "";
     setDetectStatus(`${summary.filled} Zeile(n) gefüllt.${failed}`, summary.filled ? "ok" : "err");
   } catch (err) {
