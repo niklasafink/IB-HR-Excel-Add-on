@@ -69,19 +69,6 @@
         <button id="generate" class="primary" type="button">Report erzeugen</button>
         <div id="status" class="status"></div>
       </section>
-
-      <details class="block proxy-block">
-        <summary>Einstellungen</summary>
-        <label for="proxyUrl">Proxy-Adresse (Server)</label>
-        <div class="field-inline">
-          <input id="proxyUrl" type="text" placeholder="https://dein-proxy.example.com/api" />
-          <button id="testConn" class="secondary" type="button">Test</button>
-        </div>
-        <label for="userToken">Zugangs-Token (persönlich)</label>
-        <input id="userToken" type="password" placeholder="vom Administrator erhalten" />
-        <p class="muted-line">Nur bei der Ersteinrichtung nötig.</p>
-        <p class="muted-line">Version <span id="appVersion">–</span></p>
-      </details>
       </div>
 
       <div id="detectView" class="hidden">
@@ -116,6 +103,19 @@
           <div id="detectStatus" class="status"></div>
         </section>
       </div>
+
+      <details class="block proxy-block">
+        <summary>Einstellungen</summary>
+        <label for="proxyUrl">Proxy-Adresse (Server)</label>
+        <div class="field-inline">
+          <input id="proxyUrl" type="text" placeholder="https://dein-proxy.example.com/api" />
+          <button id="testConn" class="secondary" type="button">Test</button>
+        </div>
+        <label for="userToken">Zugangs-Token (persönlich)</label>
+        <input id="userToken" type="password" placeholder="vom Administrator erhalten" />
+        <p class="muted-line">Nur bei der Ersteinrichtung nötig.</p>
+        <p class="muted-line">Version <span id="appVersion">–</span></p>
+      </details>
     </main>
   </body>
 </html>
