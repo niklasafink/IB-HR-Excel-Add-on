@@ -125,6 +125,39 @@ const FEATURES = ["financial_kpi", "profit_and_loss_account", "website_content"]
 const DESCRIPTION_MAX = 600;
 const WEB_SUMMARY_MAX = 320;
 
+// Credit-Kosten je Feature – Spiegelung der Proxy-Logik (usage.ts: creditCost).
+// Pro Firma gilt: max(5, Summe der angefragten Feature-Credits).
+const FEATURE_CREDITS: Record<string, number> = {
+  financial_kpi: 1,
+  balance_sheet_accounts: 3,
+  profit_and_loss_account: 3,
+  related_persons: 2,
+  publications: 1,
+  news: 10,
+  insolvency_publications: 1,
+  shareholders: 5,
+  ubos: 10,
+  shareholdings: 5,
+  website_content: 0,
+};
+
+/** Credits pro Firma für den Erkennen-Request (mind. 5). */
+export const FILL_CREDITS_PER_COMPANY = Math.max(
+  5,
+  FEATURES.reduce((sum, feature) => sum + (FEATURE_CREDITS[feature] ?? 0), 0)
+);
+
+/**
+ * Schätzt die Kosten des Erkennen-Laufs für die aktuelle Auswahl:
+ * Anzahl nicht-leerer Firmen in der Input-Spalte × Credits pro Firma.
+ */
+export function estimateFillCredits(table: TableInfo, mapping: Mapping): { companies: number; credits: number } {
+  const companies = table.dataValues
+    .map((row) => String(row[mapping.input] ?? "").trim())
+    .filter(Boolean).length;
+  return { companies, credits: companies * FILL_CREDITS_PER_COMPANY };
+}
+
 export interface RowResult {
   name: string;
   revenue: number | null;

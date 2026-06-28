@@ -196,6 +196,20 @@ h2 {
   font-size: 12px;
 }
 
+.detect-cost {
+  margin: 8px 0 0;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #E2F0D9;
+  color: #185c37;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.detect-cost.hidden {
+  display: none;
+}
+
 .add-row {
   display: grid;
   grid-template-columns: 1fr 36px;

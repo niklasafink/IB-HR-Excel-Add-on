@@ -19,6 +19,8 @@ import {
   readTable,
   detectMapping,
   fillTable,
+  estimateFillCredits,
+  FILL_CREDITS_PER_COMPANY,
   columnLetter,
   TARGETS,
   NONE,
@@ -364,14 +366,29 @@ async function rescanTable(): Promise<void> {
     byId("detectRange").textContent =
       `Tabelle ${detectTable.address} · ${detectTable.rowCount} Firmen, ${detectTable.colCount} Spalten`;
     renderMapping();
+    updateDetectCost();
     setDetectStatus("");
   } catch (err) {
     detectTable = null;
     detectMappingState = null;
     byId("mappingList").innerHTML = "";
     byId("detectRange").textContent = "";
+    updateDetectCost();
     setDetectStatus((err as Error).message, "err");
   }
+}
+
+/** Zeigt oben die geschätzten Credit-Kosten für die aktuelle Auswahl an. */
+function updateDetectCost(): void {
+  const el = byId("detectCost");
+  if (!detectTable || !detectMappingState) {
+    el.classList.add("hidden");
+    el.textContent = "";
+    return;
+  }
+  const { companies, credits } = estimateFillCredits(detectTable, detectMappingState);
+  el.textContent = `Kosten dieser Abfrage: ~${credits} Credits (${companies} Firmen × ${FILL_CREDITS_PER_COMPANY})`;
+  el.classList.remove("hidden");
 }
 
 function renderMapping(): void {
@@ -393,6 +410,8 @@ function renderMapping(): void {
       select.addEventListener("change", () => {
         const key = select.dataset.target as TargetKey;
         if (detectMappingState) detectMappingState[key] = Number(select.value);
+        // Input-Spalte beeinflusst die Firmenanzahl -> Kosten neu berechnen.
+        if (key === "input") updateDetectCost();
       });
     });
 }
