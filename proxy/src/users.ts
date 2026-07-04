@@ -31,9 +31,8 @@ export interface User {
   name: string;
   /** Mandant (Kunde), zu dem dieser Nutzer gehört. */
   tenantId: string;
+  /** Nur der SHA-256-Hash des Tokens wird gespeichert – nie der Klartext. */
   tokenHash: string;
-  /** Klartext-Token, damit der Admin ihn später wieder kopieren kann. */
-  token: string;
   creditLimit: number;
   creditsUsed: number;
   unlimited: boolean;
@@ -66,6 +65,12 @@ function migrateUsers(): void {
   for (const user of store.users) {
     if (!user.tenantId) {
       user.tenantId = DEFAULT_TENANT_ID;
+      changed = true;
+    }
+    // Alt-Bestand: früher wurde der Token zusätzlich im Klartext gespeichert.
+    // Beim Start entfernen, sodass in users.json nur noch der Hash verbleibt.
+    if ("token" in user) {
+      delete (user as Record<string, unknown>).token;
       changed = true;
     }
   }
@@ -145,7 +150,6 @@ export function createUser(
     name: name.trim() || "Unbenannt",
     tenantId: tenantId || DEFAULT_TENANT_ID,
     tokenHash: hashToken(token),
-    token,
     creditLimit: Number.isFinite(creditLimit) && creditLimit >= 0 ? Math.floor(creditLimit) : 0,
     creditsUsed: 0,
     unlimited: false,
@@ -187,7 +191,6 @@ export function rotateToken(id: string): { user: PublicUser; token: string } | n
   if (!user) return null;
   const token = randomBytes(24).toString("hex");
   user.tokenHash = hashToken(token);
-  user.token = token;
   persist();
   return { user: publicView(user), token };
 }

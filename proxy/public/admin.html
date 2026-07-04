@@ -267,7 +267,7 @@
                 <td>${statusPill(u)}</td>
                 <td><div class="actions">
                   <button class="btn sm primary saveBtn" type="button">Limit speichern</button>
-                  <button class="btn sm copyTokenBtn" type="button">Token kopieren</button>
+                  <button class="btn sm copyTokenBtn" type="button">Neuer Token</button>
                   <button class="btn sm unlimitedBtn" type="button">${u.unlimited ? "Limit aktivieren" : "Limit aufheben"}</button>
                   <button class="btn sm disableBtn" type="button">${u.disabled ? "Entsperren" : "Sperren"}</button>
                   <button class="btn sm resetBtn" type="button">Verbrauch 0</button>
@@ -287,14 +287,17 @@
           const id = tr.dataset.id;
           const u = byId[id];
           tr.querySelector(".copyTokenBtn").onclick = () => {
-            if (!u.token) {
-              alert("Für diesen Nutzer ist kein Token gespeichert (vor diesem Update angelegt). Bitte einen neuen Nutzer anlegen.");
-              return;
-            }
-            navigator.clipboard.writeText(u.token).then(
-              () => alert("Token kopiert:\n\n" + u.token),
-              () => prompt("Token (manuell kopieren):", u.token)
-            );
+            // Der Token wird serverseitig nur als Hash gespeichert und kann nicht
+            // erneut ausgelesen werden. "Neuer Token" erzeugt daher einen frischen
+            // Token (der alte wird ungültig) und zeigt ihn einmalig an.
+            if (!confirm(`Neuen Token für "${u.name}" erzeugen?\n\nDer bisherige Token wird damit ungültig.`)) return;
+            api(`/users/${id}/rotate-token`, { method: "POST" })
+              .then(({ token: userToken, user }) => {
+                $("newToken").classList.remove("hidden");
+                $("newToken").innerHTML = `<b>Neuer Zugangs-Token für ${escapeHtml(user.name)}</b> (nur jetzt sichtbar – an den Nutzer weitergeben):<br>${escapeHtml(userToken)}`;
+                refreshAll();
+              })
+              .catch((err) => alert(err.message));
           };
           tr.querySelector(".saveBtn").onclick = () =>
             act(() => api(`/users/${id}`, { method: "PATCH", body: JSON.stringify({ creditLimit: Number(tr.querySelector(".limitInput").value) }) }));

@@ -13,7 +13,26 @@
 | [EULA.md](EULA.md) | Endnutzer-Lizenzvereinbarung (Softwarelizenz Gordon) |
 | [Nutzungsbedingungen.md](Nutzungsbedingungen.md) | Vertragliche Nutzungsbedingungen / AGB für Kunden |
 | [Datenschutzerklaerung.md](Datenschutzerklaerung.md) | Datenschutzhinweise zum Add-in |
-| [AVV.md](AVV.md) | Auftragsverarbeitungsvertrag (nur falls du den Proxy für den Kunden betreibst) |
+| [AVV.md](AVV.md) | AVV-Kurzmuster (allgemein) |
+
+### Managed-Hosting (Modell B) – vollständiges DSGVO-Nachweispaket
+Für den Fall, dass **der Anbieter den Proxy betreibt** (aktueller Betrieb:
+`api.gordonsregister.com` auf Hetzner Cloud, EU/DE):
+
+| Dokument | Zweck |
+|----------|-------|
+| [DSGVO-Nachweispaket.md](DSGVO-Nachweispaket.md) | **Start hier** – Übersicht, Datenflussdiagramm, Kunden-Checkliste |
+| [AVV-Gordon.md](AVV-Gordon.md) | Auftragsverarbeitungsvertrag (Art. 28), Gordon als Auftragsverarbeiter |
+| [TOM-Gordon.md](TOM-Gordon.md) | Technische & organisatorische Maßnahmen (Art. 32) |
+| [Subunternehmer-Gordon.md](Subunternehmer-Gordon.md) | Unterauftragsverarbeiter (Hetzner, Cloudflare, handelsregister.ai) |
+| [Verzeichnis-Verarbeitungstaetigkeiten-Art30.md](Verzeichnis-Verarbeitungstaetigkeiten-Art30.md) | Verzeichnis (Art. 30 Abs. 2) |
+| [Loeschkonzept.md](Loeschkonzept.md) | Aufbewahrung & Löschung |
+| [Datenschutzverletzung-Meldeprozess-Art33.md](Datenschutzverletzung-Meldeprozess-Art33.md) | Meldeprozess (Art. 33) |
+| [../docs/DSGVO-technische-Umsetzung.md](../docs/DSGVO-technische-Umsetzung.md) | Technische Umsetzung / Betriebs-Checkliste (intern) |
+
+> **Achtung Modell-B:** Die untenstehende Einordnung („Daten erreichen den Anbieter
+> nicht") gilt nur für **Modell A (Kunde hostet selbst)**. Im Managed-Hosting ist der
+> Anbieter **Auftragsverarbeiter** – dann gilt das Nachweispaket oben.
 
 ## DSGVO-Einordnung (Architektur-bedingt)
 

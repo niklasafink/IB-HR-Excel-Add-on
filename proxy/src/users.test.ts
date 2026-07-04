@@ -46,10 +46,15 @@ describe("users – Verwaltung & Auth", () => {
     expect(moved?.tenantId).toBe("kunde-b");
   });
 
-  it("liefert den Klartext-Token in listUsers (für 'Token kopieren')", () => {
+  it("speichert den Token nur als Hash und gibt ihn nie über listUsers preis", () => {
     const { user, token } = users.createUser("Copy-Test", 5);
-    const found = users.listUsers().find((u) => u.id === user.id);
-    expect(found?.token).toBe(token);
+    const found = users.listUsers().find((u) => u.id === user.id) as Record<string, unknown> | undefined;
+    expect(found).toBeDefined();
+    // Weder Klartext-Token noch Hash dürfen in der öffentlichen Sicht auftauchen.
+    expect(found?.token).toBeUndefined();
+    expect(found?.tokenHash).toBeUndefined();
+    // Authentifizierung funktioniert weiterhin über den einmalig ausgegebenen Token.
+    expect(users.authenticateUser(token)?.id).toBe(user.id);
   });
 
   it("erzwingt das Limit und bucht Verbrauch über den Kontext", () => {

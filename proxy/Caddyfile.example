@@ -1,0 +1,40 @@
+# Gordon Reverse-Proxy (Caddy) – DSGVO-konformes Logging
+# ---------------------------------------------------------------
+# Caddy terminiert TLS (Let's Encrypt, automatisch) und leitet an den
+# Node-Proxy weiter. Wichtig für den Datenschutz: der Query-String wird aus
+# den Access-Logs entfernt, damit KEINE Suchbegriffe/Personennamen
+# (?q=Max Mustermann) dauerhaft auf der Platte landen.
+#
+# Nur die API läuft über Caddy. Das statische Add-in liegt auf Cloudflare Pages.
+# Kopiere diese Datei nach /etc/caddy/Caddyfile und passe die Domain an.
+
+api.gordonsregister.com {
+    reverse_proxy localhost:3001
+
+    log {
+        output file /var/log/caddy/gordon-api.log {
+            roll_size 10MiB
+            roll_keep 5
+            roll_keep_for 720h   # ~30 Tage Rotation
+        }
+        # Built-in "filter"-Encoder: entfernt in der geloggten URI alles ab "?".
+        # Ergebnis im Log: nur der Pfad (z. B. /api/organization), ohne Query.
+        format filter {
+            request>uri regexp "\?.*$" ""
+        }
+    }
+}
+
+# --- Alternative 1: einzelne Parameter statt kompletten Query strippen ---
+#   format filter {
+#       request>uri query {
+#           delete q
+#           delete person_q
+#           delete organization_q
+#           delete company_id
+#       }
+#   }
+#
+# --- Alternative 2: Access-Logs komplett aus (nur Fehler werden geloggt) ---
+#   Dann den gesamten `log { ... }`-Block weglassen. Zero-Risk, aber auch
+#   keine Zugriffs-Diagnose mehr.
